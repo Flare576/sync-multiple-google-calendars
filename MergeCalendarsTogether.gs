@@ -111,7 +111,10 @@ function DateObjectToItems(dateObject) {
 function ExistsInOrigin(origin, mergedEvent) {
   const realStart = GetRealStart(mergedEvent);
   return !!origin.primary[realStart]
-    ?.some(originEvent => mergedEvent.summary === GetMergeSummary(originEvent))
+    ?.some(originEvent => {
+      return mergedEvent.summary === GetMergeSummary(originEvent) &&
+        mergedEvent.location === originEvent.location
+    })
 }
 
 function ExistsInDestination(destination, originEvent) {
@@ -119,6 +122,7 @@ function ExistsInDestination(destination, originEvent) {
   return !!destination.merged[realStart]
     ?.some(mergedEvent => {
       return mergedEvent.summary === GetMergeSummary(originEvent) &&
+        mergedEvent.location === originEvent.location &&
         !isDescWrong(mergedEvent) // sorry for the double negative :'(
     })
 }

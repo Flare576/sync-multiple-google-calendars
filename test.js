@@ -35,6 +35,21 @@ it('should NOT find event in origin when it does not exist', () => {
   return !objectUnderTest.ExistsInOrigin(origin, mergedEvent)
 })
 
+it('should NOT find event in origin when location is obscured', () => {
+  const origin = {primary: {
+    [new Date(1111).toUTCString()]: [{
+      summary: 'I changed to obscured',
+      location: objectUnderTest.LOC_NOT_COPIED_MSG,
+    }]
+  }}
+  const mergedEvent = {
+    start: {dateTime: 1111},
+    summary: `${objectUnderTest.MERGE_PREFIX}I changed to obscured`,
+    location: 'the real location',
+  }
+  return !objectUnderTest.ExistsInOrigin(origin, mergedEvent)
+})
+
 it('should find event in destination when it exists', () => {
   objectUnderTest.TEST_INCLUDE_DESC = true
   const destination = {merged: {
@@ -94,6 +109,24 @@ it('should NOT find event in origin when description does not match; is obscured
     start: {dateTime: 1111},
     summary: 'Matches',
     description: 'one'
+  }
+  return !objectUnderTest.ExistsInDestination(destination, originEvent)
+})
+
+it('should NOT find event in origin when location does not match; is obscured', () => {
+  objectUnderTest.TEST_INCLUDE_DESC = false
+  const destination = {merged: {
+    [new Date(1111).toUTCString()]: [{
+      summary: `${objectUnderTest.MERGE_PREFIX}Matches`,
+      description: objectUnderTest.DESC_NOT_COPIED_MSG,
+      location: objectUnderTest.LOC_NOT_COPIED_MSG,
+    }]
+  }}
+  const originEvent = {
+    start: {dateTime: 1111},
+    summary: 'Matches',
+    description: objectUnderTest.DESC_NOT_COPIED_MSG,
+    location: 'the real location',
   }
   return !objectUnderTest.ExistsInDestination(destination, originEvent)
 })
