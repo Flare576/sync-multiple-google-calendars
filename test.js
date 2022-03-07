@@ -66,7 +66,7 @@ it('should find event in destination when it exists', () => {
   return objectUnderTest.ExistsInDestination(destination, originEvent)
 })
 
-it('should NOT find event in origin when summary does not match', () => {
+it('should NOT find event in destination when summary does not match', () => {
   const destination = {merged: {
     [new Date(1111).toUTCString()]: [{
       summary: `${objectUnderTest.MERGE_PREFIX}Do not find me`,
@@ -81,7 +81,7 @@ it('should NOT find event in origin when summary does not match', () => {
   return !objectUnderTest.ExistsInDestination(destination, originEvent)
 })
 
-it('should NOT find event in origin when description does not match; not obscured', () => {
+it('should NOT find event in destination when description does not match; not obscured', () => {
   objectUnderTest.TEST_INCLUDE_DESC = true
   const destination = {merged: {
     [new Date(1111).toUTCString()]: [{
@@ -97,7 +97,7 @@ it('should NOT find event in origin when description does not match; not obscure
   return !objectUnderTest.ExistsInDestination(destination, originEvent)
 })
 
-it('should NOT find event in origin when description does not match; is obscured', () => {
+it('should NOT find event in destination when description does not match; is obscured', () => {
   objectUnderTest.TEST_INCLUDE_DESC = false
   const destination = {merged: {
     [new Date(1111).toUTCString()]: [{
@@ -113,7 +113,7 @@ it('should NOT find event in origin when description does not match; is obscured
   return !objectUnderTest.ExistsInDestination(destination, originEvent)
 })
 
-it('should NOT find event in origin when location does not match; is obscured', () => {
+it('should NOT find event in destination when location does not match; is obscured', () => {
   objectUnderTest.TEST_INCLUDE_DESC = false
   const destination = {merged: {
     [new Date(1111).toUTCString()]: [{
