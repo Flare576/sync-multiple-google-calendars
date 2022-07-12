@@ -161,25 +161,25 @@ it('should NOT find event in destination when location does not match; is obscur
 it('should find when desc incorrectly excluded', () => {
   objectUnderTest.TEST_INCLUDE_DESC = true
   const event = { description: objectUnderTest.DESC_NOT_COPIED_MSG }
-  return objectUnderTest.isDescWrong(event)
+  return objectUnderTest.IsDescWrong(event)
 })
 
 it('should find when desc is incorrectly included', () => {
   objectUnderTest.TEST_INCLUDE_DESC = false
   const event = { description: 'blah blah' }
-  return objectUnderTest.isDescWrong(event)
+  return objectUnderTest.IsDescWrong(event)
 })
 
 it('should pass when desc is correctly included', () => {
   objectUnderTest.TEST_INCLUDE_DESC = true
   const event = { description: 'blah blah' }
-  return !objectUnderTest.isDescWrong(event)
+  return !objectUnderTest.IsDescWrong(event)
 })
 
 it('should pass when desc is correctly excluded', () => {
   objectUnderTest.TEST_INCLUDE_DESC = false
   const event = { description: objectUnderTest.DESC_NOT_COPIED_MSG }
-  return !objectUnderTest.isDescWrong(event)
+  return !objectUnderTest.IsDescWrong(event)
 })
 
 it('should end up with events in primary', () => {
