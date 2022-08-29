@@ -59,8 +59,11 @@ const log = createLogger();
 // listed as first function so it's the default to run in the web UI
 function MergeCalendarsTogether() {
   const dates = GetStartEndDates();
+  var lock = LockService.getScriptLock();
+  lock.tryLock(60000);
   const calendars = RetrieveCalendars(dates[0], dates[1]);
   MergeCalendars(calendars);
+  lock.releaseLock();
 }
 
 function DeleteAllMerged () {
