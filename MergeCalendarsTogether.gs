@@ -11,6 +11,8 @@ const SYNC_DAYS_IN_FUTURE = 30;
 // Set this to "false" when your happy with the debug output!
 const DEBUG_ONLY = true;
 
+const VERBOSE_LOGGING = false;
+
 // Configure event summaries to ignore (don't sync). These values are used with
 // RegExp.test() so when just a string literal, they act like a case-sensitive
 // "contains" check. If you want more control, use the line start (^) and/or
@@ -37,6 +39,10 @@ const OBFUSCATE_LIST_REGEXES = [
 // should we copy event descriptions?
 const USER_INCLUDE_DESC = false;
 
+// should we copy the original attendance status from the primary calendar?
+// If true, we'll keep your declined/pending status instead of marking you busy.
+const USER_COPY_SELF_ATTENDANCE_STATUS = false;
+
 // ----------------------------------------------------------------------------
 // DO NOT TOUCH FROM HERE ON
 // ----------------------------------------------------------------------------
@@ -47,6 +53,9 @@ const MERGE_PREFIX = '🔄 ';
 const DESC_NOT_COPIED_MSG = '(description not copied)'
 const SUMMARY_NOT_COPIED_MSG = '(summary not copied)'
 const LOC_NOT_COPIED_MSG = '(location not copied)'
+
+const log = createLogger();
+
 // listed as first function so it's the default to run in the web UI
 function MergeCalendarsTogether() {
   const dates = GetStartEndDates();
@@ -84,6 +93,13 @@ function GetStartEndDates () {
   return [startDate, endDate];
 }
 
+function createLogger (){
+  return {
+    info: (...msg)=> { console.log('INFO: ', ...msg) },
+    debug: (...msg)=> { if (VERBOSE_LOGGING) console.log('DEBUG:', ...msg)}
+  }
+}
+
 function INCLUDE_DESC() {
   if (typeof module === 'undefined') {
     return USER_INCLUDE_DESC
@@ -93,11 +109,20 @@ function INCLUDE_DESC() {
     : USER_INCLUDE_DESC
 }
 
+function COPY_SELF_ATTENDANCE_STATUS() {
+  if (typeof module === 'undefined') {
+    return USER_COPY_SELF_ATTENDANCE_STATUS
+  }
+  return typeof module.exports.TEST_COPY_SELF_ATTENDANCE_STATUS === 'boolean'
+    ? module.exports.TEST_COPY_SELF_ATTENDANCE_STATUS
+    : USER_COPY_SELF_ATTENDANCE_STATUS
+}
+
 function IsOnIgnoreList(event) {
   for (const currRe of IGNORE_LIST_REGEXES) {
     const isMatch = new RegExp(currRe).test(event.summary)
     if (isMatch) {
-      console.log(`Ignoring event "${event.summary}" that matches regex "${currRe}"`)
+      log.info(`Ignoring event "${event.summary}" that matches regex "${currRe}"`)
       return true
     }
   }
@@ -108,7 +133,7 @@ function IsOnObfuscateList(event) {
   for (const currRe of OBFUSCATE_LIST_REGEXES) {
     const isMatch = new RegExp(currRe).test(event.summary)
     if (isMatch) {
-      console.log(`Obfuscating event "${event.summary}" that matches regex "${currRe}"`)
+      log.info(`Obfuscating event "${event.summary}" that matches regex "${currRe}"`)
       return true
     }
   }
@@ -137,7 +162,8 @@ function ExistsInOrigin(origin, mergedEvent) {
   return !!origin.primary[realStart]
     ?.some(originEvent => {
       return mergedEvent.summary === GetMergeSummary(originEvent) &&
-        mergedEvent.location === originEvent.location
+        mergedEvent.location === originEvent.location &&
+        AttendeeSelfStatusMatches(originEvent, mergedEvent)
     })
 }
 
@@ -147,7 +173,8 @@ function ExistsInDestination(destination, originEvent) {
     ?.some(mergedEvent => {
       return mergedEvent.summary === GetMergeSummary(originEvent) &&
         mergedEvent.location === originEvent.location &&
-        !isDescWrong(mergedEvent) // sorry for the double negative :'(
+        !isDescWrong(mergedEvent) && // sorry for the double negative :'(
+        AttendeeSelfStatusMatches(originEvent, mergedEvent)
     })
 }
 
@@ -167,6 +194,23 @@ function isDescWrong(event) {
   return shouldNotHaveDescButDoes
 }
 
+function AttendeeSelfStatusMatches(originEvent, mergedEvent) {
+  if (!COPY_SELF_ATTENDANCE_STATUS()) return true;
+  const originStatus = originEvent.attendees?.find(a => a.self === true)?.responseStatus
+  const mergedStatus = mergedEvent.attendees?.find(a => a.self === true)?.responseStatus
+  const matches = originStatus === mergedStatus
+  if(!matches) log.debug(`DIFF FOUND IN ATTENDEE STATUS: originStatus: ${originStatus} ; mergedStatus: ${mergedStatus}`)
+  return matches;
+}
+
+function GetAttendeeSelf(originEvent, destination) {
+  if (!COPY_SELF_ATTENDANCE_STATUS()) return [];
+  const selfAttendee = originEvent.attendees?.find(a => a.self === true);
+  if (typeof selfAttendee === 'undefined') return []
+  selfAttendee.email = destination.calendarId;
+  return [selfAttendee];
+}
+
 function SortEvents(calendarId, items) {
     const primary = {};
     const merged = {};
@@ -174,7 +218,7 @@ function SortEvents(calendarId, items) {
     items.forEach((event) => {
       // Don't copy "free" events.
       if (event.transparency === 'transparent') {
-        console.log(`Ignoring transparent event: ${event.summary}`)
+        log.info(`Ignoring transparent event: ${event.summary}`)
         return;
       }
       const realStart = GetRealStart(event);
@@ -183,7 +227,7 @@ function SortEvents(calendarId, items) {
         const eventDateTime = merged[realStart] || [];
         if (eventDateTime.some(e => e.summary === event.summary)) {
           event.isDuplicate = true;
-          console.log(`Marking "${event.summary}" as duplicate`)
+          log.info(`Marking "${event.summary}" as duplicate`)
         }
         eventDateTime.push(event)
         merged[realStart] = eventDateTime;
@@ -224,7 +268,7 @@ function RetrieveCalendars(startTime, endTime) {
     if (!calendarCheck) {
       const msg = `Calendar not found: ${calendarId}. Be sure you've shared the`
         + `calendar to this account AND accepted the share!`
-      console.log(msg)
+      log.info(msg)
       return;
     }
 
@@ -246,11 +290,7 @@ function RetrieveCalendars(startTime, endTime) {
       items.push(...result.items)
       nextPage = result.nextPageToken;
     } while(nextPage);
-    console.log(`Found ${items.length} items for ${calendarId}`)
-    const isNoEventsFound = !items.length
-    if (isNoEventsFound) {
-      return;
-    }
+    log.info(`Found ${items.length} items for ${calendarId}`)
 
     calendars.push(SortEvents(calendarId, items));
   });
@@ -282,13 +322,15 @@ function MergeCalendars (calendars) {
               description: GetDesc(originEvent),
               start: originEvent.start,
               end: originEvent.end,
+              attendees: GetAttendeeSelf(originEvent, destination),
             }
-            calendarRequests.push({
+            log.debug(`Pre-event update body for destination:  ${destination.calendarId} :: ${body}`)
+            calendarRequests.push(JSON.parse(JSON.stringify({
               method: 'POST',
               endpoint: `${ENDPOINT_BASE}/${destination.calendarId}/events`,
               summary: body.summary, // Only used in debugging statements
               requestBody: body,
-            });
+            })));
           }
           payloadSets[destination.calendarId] = calendarRequests;
         });
@@ -315,7 +357,7 @@ function MergeCalendars (calendars) {
   Object.keys(payloadSets).forEach(calendarId => {
     const calendarRequests = payloadSets[calendarId];
     if (!(calendarRequests || []).length) {
-      console.log(`No events to modify for ${calendarId}.`);
+      log.info(`No events to modify for ${calendarId}.`);
       return
     }
     if (!DEBUG_ONLY) {
@@ -324,15 +366,17 @@ function MergeCalendars (calendars) {
         requests: calendarRequests,
       });
       if (!result.getResponseCode || result.getResponseCode() !== 200) {
-        console.log(result)
+        log.info(result)
+      } else {
+        log.debug('RESULT: ', result.toString(), '; ', result.getResponseCode() )
+        log.info(`${calendarRequests.length} events modified for ${calendarId}:`);
       }
-      console.log(`${calendarRequests.length} events modified for ${calendarId}:`);
     } else {
-      console.log(`DEBUG: ${calendarRequests.length} events would have been modified for ${calendarId}:`);
+      log.debug(`${calendarRequests.length} events would have been modified for ${calendarId}:`);
     }
     const loggable = calendarRequests
       .map(({method, endpoint, summary}) => ({method, endpoint, summary}))
-    console.log(`Requests for ${calendarId}`, JSON.stringify(loggable, null, 2));
+    log.info(`Requests for ${calendarId}`, JSON.stringify(loggable, null, 2));
   });
 }
 
@@ -353,5 +397,8 @@ if (typeof module !== 'undefined') {
     LOC_NOT_COPIED_MSG,
     SYNC_DAYS_IN_PAST,
     SYNC_DAYS_IN_FUTURE,
+    COPY_SELF_ATTENDANCE_STATUS,
+    AttendeeSelfStatusMatches,
+    GetAttendeeSelf,
   }
 }
