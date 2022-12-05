@@ -1,7 +1,15 @@
 // Calendars to merge.
+// valid providers are 'google' or 'microsoft'
 const CALENDARS_TO_MERGE = [
-  'calendar-id1@gmail.com',
-  'calendar-id2@gmail.com',
+  {
+    address: 'calendar-id1@gmail.com',
+    provider: 'google',
+  },
+  {
+    address: 'calendar-id2@gmail.com',
+    provider: 'google',
+    token: 'only_used_when_provider_is_microsoft',
+  },
 ];
 
 // Number of days in the past and future to sync.
@@ -47,8 +55,9 @@ const USER_COPY_SELF_ATTENDANCE_STATUS = false;
 // DO NOT TOUCH FROM HERE ON
 // ----------------------------------------------------------------------------
 
-const VERSION = '0.1.1';
-const ENDPOINT_BASE = 'https://www.googleapis.com/calendar/v3/calendars';
+const VERSION = '0.2.0';
+const GOOGLE_ENDPOINT_BASE = 'https://www.googleapis.com/calendar/v3/calendars';
+const MICROSOFT_ENDPOINT_BASE = 'https://graph.microsoft.com/v1.0/me';
 const MERGE_PREFIX = '🔄 ';
 const DESC_NOT_COPIED_MSG = '(description not copied)'
 const SUMMARY_NOT_COPIED_MSG = '(summary not copied)'
@@ -206,15 +215,15 @@ function AttendeeSelfStatusMatches(originEvent, mergedEvent) {
   return matches;
 }
 
-function GetAttendeeSelf(originEvent, destination) {
+function GetAttendeeSelf(originEvent, address) {
   if (!COPY_SELF_ATTENDANCE_STATUS()) return [];
   const selfAttendee = originEvent.attendees?.find(a => a.self === true);
   if (typeof selfAttendee === 'undefined') return []
-  selfAttendee.email = destination.calendarId;
+  selfAttendee.email = address;
   return [selfAttendee];
 }
 
-function SortEvents(calendarId, items) {
+function SortEvents(calendarObj, items) {
     const primary = {};
     const merged = {};
 
@@ -258,7 +267,7 @@ function SortEvents(calendarId, items) {
     });
 
   return {
-    calendarId,
+    calendarObj,
     primary,
     merged,
   }
@@ -266,121 +275,210 @@ function SortEvents(calendarId, items) {
 
 function RetrieveCalendars(startTime, endTime) {
   const calendars = []
-  CALENDARS_TO_MERGE.forEach(calendarId => {
-    const calendarCheck = CalendarApp.getCalendarById(calendarId);
-    if (!calendarCheck) {
-      const msg = `Calendar not found: ${calendarId}. Be sure you've shared the`
-        + `calendar to this account AND accepted the share!`
-      log.info(msg)
-      return;
-    }
-
-    // Find events
+  CALENDARS_TO_MERGE.forEach((calendarObj) => {
+  const { address, provider, token } = calendarObj;
     const items = [];
     let nextPage;
-    do {
-      let options = {
-        timeMin: startTime.toISOString(),
-        timeMax: endTime.toISOString(),
-        singleEvents: true,
-        orderBy: 'startTime',
-      };
-      if (nextPage) {
-        options.pageToken = nextPage;
+    if (provider === 'google') {
+      const calendarCheck = CalendarApp.getCalendarById(address);
+      if (!calendarCheck) {
+        const msg = `Calendar not found: ${address}. Be sure you've shared the`
+          + `calendar to this account AND accepted the share!`
+        log.info(msg)
+        return;
       }
 
-      const result = Calendar.Events.list(calendarId, options);
-      items.push(...result.items)
-      nextPage = result.nextPageToken;
-    } while(nextPage);
-    log.info(`Found ${items.length} items for ${calendarId}`)
+      // Find events
+      do {
+        let options = {
+          timeMin: startTime.toISOString(),
+          timeMax: endTime.toISOString(),
+          singleEvents: true,
+          orderBy: 'startTime',
+        };
+        if (nextPage) {
+          options.pageToken = nextPage;
+        }
 
-    calendars.push(SortEvents(calendarId, items));
+        const result = Calendar.Events.list(address, options);
+        items.push(...result.items)
+        nextPage = result.nextPageToken;
+      } while(nextPage);
+    } else if (provider === 'microsoft') {
+      nextPage = MICROSOFT_ENDPOINT_BASE +
+          `/calendarview?startdatetime=${startTime.toISOString()}&enddatetime=${endTime.toISOString()}`
+      do {
+        const response = UrlFetchApp.fetch(nextPage, {
+            headers: {
+              'Authorization': 'Bearer ' + token,
+            }
+          });
+        const payload = JSON.parse(response.getContentText());
+        items.push(...payload.value.map(ParseMicrosoftCal));
+        nextPage = payload["@odata.nextLink"];
+      } while(nextPage);
+    }
+
+    log.info(`Found ${items.length} items for ${address}`)
+    calendars.push(SortEvents(calendarObj, items));
   });
 
   return calendars;
 }
 
+function ParseMicrosoftCal (microsoftCal) {
+  return {
+    getId: () => microsoftCal.id,
+    start: microsoftCal.start,
+    end: microsoftCal.end,
+    description: microsoftCal.body.content,
+    location: microsoftCal.location.displayName,
+    summary: microsoftCal.subject,
+    transparency: microsoftCal.showAs === 'free' ? 'transparent' : 'opaque',
+    attendees: microsoftCal.attendees.map(({status, emailAddress}) => ({
+      email: emailAddress.address,
+      responseStatus: status.response,
+    })),
+  };
+}
+
+function FindOrCreateBatch (set, address, calendarObj) {
+  return set[address] || {
+    calendarObj: calendarObj,
+    requests: [],
+  };
+}
 
 function MergeCalendars (calendars) {
   // One Calender per batch...
-  const payloadSets = {};
+  const batchSets = {};
 
-  calendars.forEach(({calendarId, primary, merged}) => {
+  calendars.forEach(({calendarObj, primary, merged}) => {
+    const { address, provider, token } = calendarObj;
     // Now that we have all events for all calendars, ensure each calendar's
     // primary events are merged to others
     DateObjectToItems(primary).forEach(originEvent => {
       calendars
-        .filter(destination => destination.calendarId !== calendarId) // Don't send to the current calendar
+        // Don't send to the current calendar
+        .filter(destination => destination.calendarObj.address !== address)
         .forEach(destination => {
-          const calendarRequests = payloadSets[destination.calendarId] || [];
+          const destinationAddress = destination.calendarObj.address;
+          const updateDeleteBatch = FindOrCreateBatch(batchSets, destinationAddress, destination.calendarObj);
           if (!ExistsInDestination(destination, originEvent)) {
-            const body = {
-              summary: GetMergeSummary(originEvent),
-              location: originEvent.location,
-              reminders: {
-                useDefault: false,
-                overrides: [], // No reminders
-              },
-              description: GetDesc(originEvent),
-              start: originEvent.start,
-              end: originEvent.end,
-              attendees: GetAttendeeSelf(originEvent, destination),
+            let body, endpoint, loggableSummary;
+            if (destination.calendarObj.provider === 'google') {
+              body = CreateGoogleBody(originEvent, destinationAddress);
+              endpoint = `${GOOGLE_ENDPOINT_BASE}/${destinationAddress}/events`;
+              loggableSummary = body.summary;
+            } else if (destination.calendarObj.provider === 'microsoft') {
+              body = CreateMicrosoftBody(originEvent, destinationAddress);
+              endpoint = `/me/events`;
+              loggableSummary = body.subject;
             }
-            log.debug(`Pre-event update body for destination:  ${destination.calendarId} :: ${body}`)
-            calendarRequests.push(JSON.parse(JSON.stringify({
+            updateDeleteBatch.requests.push(JSON.parse(JSON.stringify({
               method: 'POST',
-              endpoint: `${ENDPOINT_BASE}/${destination.calendarId}/events`,
-              summary: body.summary, // Only used in debugging statements
+              endpoint,
+              loggableSummary,
               requestBody: body,
             })));
+            log.debug(`Pre-event update body for destination:  ${destinationAddress} :: ${JSON.stringify(body)}`)
           }
-          payloadSets[destination.calendarId] = calendarRequests;
+
+          batchSets[destinationAddress] = updateDeleteBatch;
         });
     });
     // Also make sure that all of our merged appointments still exist in some
     // other calendar's primary list
     DateObjectToItems(merged).forEach(mergedEvent => {
       const primaryFound = calendars
-        .some(origin => origin.calendarId !== calendarId &&
+        .some(origin => origin.calendarObj.address !== address &&
             ExistsInOrigin(origin, mergedEvent));
       if (!primaryFound || mergedEvent.isDuplicate || isDescWrong(mergedEvent)) {
-        let calendarRequests = payloadSets[calendarId] || [];
-        calendarRequests.push({
+        const updateDeleteBatch = FindOrCreateBatch(batchSets, address, calendarObj);
+        let endpoint, loggableSummary;
+        if (provider === 'google') {
+          endpoint = `${GOOGLE_ENDPOINT_BASE}/${address}/events/${mergedEvent.getId()
+              .replace('@google.com', '')}`;
+          loggableSummary = mergedEvent.summary;
+        } else if (provider === 'microsoft') {
+          endpoint = `/me/events/${mergedEvent.getId()}`;
+          loggableSummary = mergedEvent.subject;
+        }
+        updateDeleteBatch.requests.push({
           method: 'DELETE',
-          endpoint: `${ENDPOINT_BASE}/${calendarId}/events/${mergedEvent.getId()
-              .replace('@google.com', '')}`,
-          summary: mergedEvent.summary, // Only used in debugging statements
+          endpoint,
+          loggableSummary,
         });
-        payloadSets[calendarId] = calendarRequests;
+
+        batchSets[address] = updateDeleteBatch;
       }
     });
   });
 
-  Object.keys(payloadSets).forEach(calendarId => {
-    const calendarRequests = payloadSets[calendarId];
-    if (!(calendarRequests || []).length) {
-      log.info(`No events to modify for ${calendarId}.`);
+  Object.keys(batchSets).forEach(key => {
+    const {calendarObj: {address, provider, token}, requests} = batchSets[key];
+    if (!requests.length) {
+      log.info(`No events to modify for ${address}.`);
       return
     }
     if (!DEBUG_ONLY) {
-      const result = new BatchRequest({
-        batchPath: 'batch/calendar/v3',
-        requests: calendarRequests,
-      });
+      let result;
+      if (provider === 'google') {
+        result = new BatchRequest({
+          batchPath: 'batch/calendar/v3',
+          requests: calendarRequests,
+        });
+        log.info('skipping Google Updates!');
+      } else if (provider === 'microsoft') {
+        result = new MicrosoftBatchRequest({
+          requests,
+          accessToken: token,
+        });
+      }
       if (!result.getResponseCode || result.getResponseCode() !== 200) {
         log.info(result)
       } else {
         log.debug('RESULT: ', result.toString(), '; ', result.getResponseCode() )
-        log.info(`${calendarRequests.length} events modified for ${calendarId}:`);
+        log.info(`${requests.length} events modified for ${address}:`);
       }
+
     } else {
-      log.debug(`${calendarRequests.length} events would have been modified for ${calendarId}:`);
+      log.debug(`${requests.length} events would have been modified for ${address}:`);
     }
-    const loggable = calendarRequests
-      .map(({method, endpoint, summary}) => ({method, endpoint, summary}))
-    log.info(`Requests for ${calendarId}`, JSON.stringify(loggable, null, 2));
+    const loggable = requests
+      .map(({method, endpoint, loggableSummary}) => ({method, endpoint, loggableSummary}))
+    log.info(`Requests for ${address}`, JSON.stringify(loggable, null, 2));
   });
+}
+
+function CreateMicrosoftBody (originEvent, destinationAddress) {
+  return {
+    subject: GetMergeSummary(originEvent),
+    location: originEvent.location,
+    reminderMinutesBeforeStart: 0,
+    body: {
+      contentType: 'text',
+      content: GetDesc(originEvent),
+    },
+    start: originEvent.start,
+    end: originEvent.end,
+    attendees: GetAttendeeSelf(originEvent, destinationAddress),
+  }
+}
+
+function CreateGoogleBody (originEvent, destinationAddress) {
+  return {
+    summary: GetMergeSummary(originEvent),
+    location: originEvent.location,
+    reminders: {
+      useDefault: false,
+      overrides: [], // No reminders
+    },
+    description: GetDesc(originEvent),
+    start: originEvent.start,
+    end: originEvent.end,
+    attendees: GetAttendeeSelf(originEvent, destinationAddress),
+  }
 }
 
 if (typeof module !== 'undefined') {
