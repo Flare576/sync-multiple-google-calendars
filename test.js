@@ -213,7 +213,7 @@ it('SortEvents should obfuscate the summary, description, and location of a matc
     location: 'secret lair',
   }
   mockConsole()
-  const calendar = objectUnderTest.SortEvents(1, [primaryEvent])
+  const calendar = objectUnderTest.SortEvents([primaryEvent])
   const loggedOnce = console.calls.log.length === 1
   const primaryDateTime = calendar.primary[new Date(3333).toUTCString()]
   const isSummaryObfuscated = primaryDateTime[0].summary === objectUnderTest.SUMMARY_NOT_COPIED_MSG

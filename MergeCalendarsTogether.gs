@@ -1,14 +1,17 @@
 // Calendars to merge.
-// valid providers are 'google' or 'microsoft'
 const CALENDARS_TO_MERGE = [
+  // Format for Google Accounts
   {
-    address: 'calendar-id1@gmail.com',
-    provider: 'google',
+    address: 'calendar-id1@company.com',
+    provider: 'google', // valid providers are 'google' or 'microsoft'
   },
+  // Format for Microsoft Accounts
   {
-    address: 'calendar-id2@gmail.com',
-    provider: 'google',
-    token: 'only_used_when_provider_is_microsoft',
+    address: 'calendar-id2@company.com',
+    provider: 'microsoft', // valid providers are 'google' or 'microsoft'
+    clientSecret: 'from_azure_setup_process',
+    tenantId: 'from_azure_setup_process',
+    clientId: 'from_azure_setup_process',
   },
 ];
 
@@ -56,8 +59,6 @@ const USER_COPY_SELF_ATTENDANCE_STATUS = false;
 // ----------------------------------------------------------------------------
 
 const VERSION = '0.2.0';
-const GOOGLE_ENDPOINT_BASE = 'https://www.googleapis.com/calendar/v3/calendars';
-const MICROSOFT_ENDPOINT_BASE = 'https://graph.microsoft.com/v1.0/me';
 const MERGE_PREFIX = '🔄 ';
 const DESC_NOT_COPIED_MSG = '(description not copied)'
 const SUMMARY_NOT_COPIED_MSG = '(summary not copied)'
@@ -73,6 +74,20 @@ function MergeCalendarsTogether() {
   const calendars = RetrieveCalendars(dates[0], dates[1]);
   MergeCalendars(calendars);
   lock.releaseLock();
+}
+
+function ShowAuthorizationURLs() {
+  CALENDARS_TO_MERGE.forEach((calendarObj) => {
+    if (calendarObj.provider === 'microsoft') {
+      var azureService = getAzureService_(calendarObj);
+      var authorizationUrl = azureService.getAuthorizationUrl();
+      if (!azureService.hasAccess()) {
+        console.log('Open this URL in another tab: ' + authorizationUrl);
+      } else {
+        console.log('It looks like ' + calendarObj.address + ' is already setup, but here is the URL: ' + authorizationUrl);
+      }
+    }
+  });
 }
 
 function DeleteAllMerged () {
@@ -275,11 +290,10 @@ function SortEvents(items) {
 function RetrieveCalendars(startTime, endTime) {
   const calendars = []
   CALENDARS_TO_MERGE.forEach((calendarObj) => {
-  const { address, provider, token } = calendarObj;
     let cal;
-    if (provider === 'google') {
+    if (calendarObj.provider === 'google') {
       cal = new GoogleCalendar(calendarObj)
-    } else if (provider === 'microsoft') {
+    } else if (calendarObj.provider === 'microsoft') {
       cal = new MicrosoftCalendar(calendarObj);
     }
     cal.retrieve(startTime, endTime);
@@ -341,17 +355,74 @@ function MergeCalendars (calendars) {
   });
 }
 
+// Based on https://github.com/googleworkspace/apps-script-oauth2
+function getAzureService_ (calendarObj) {
+  // Create a new service with the given name. The name will be used when
+  // persisting the authorized token, so ensure it is unique within the
+  // scope of the property store.
+  return OAuth2.createService('azure')
+
+  // Set the endpoint URLs, which are the same for all Google services.
+    .setAuthorizationBaseUrl('https://login.microsoftonline.com/' + calendarObj.tenantId + '/oauth2/v2.0/authorize')
+    .setTokenUrl('https://login.microsoftonline.com/' + calendarObj.tenantId + '/oauth2/v2.0/token')
+
+  // Set the client ID and secret, from the Google Developers Console.
+    .setClientId(calendarObj.clientId)
+    .setClientSecret(calendarObj.clientSecret)
+
+  // Set the name of the callback function in the script referenced
+  // above that should be invoked to complete the OAuth flow.
+    .setCallbackFunction('authCallback')
+
+  // Set the property store where authorized tokens should be persisted.
+    .setPropertyStore(PropertiesService.getUserProperties())
+
+  // Set the scopes to request (space-separated for Google services).
+    .setScope('Calendars.ReadWrite openid Presence.Read.All profile User.Read email')
+
+  // Below are Google-specific OAuth2 parameters.
+
+  // Sets the login hint, which will prevent the account chooser screen
+  // from being shown to users logged in with multiple accounts.
+    .setParam('login_hint', calendarObj.address)
+
+  // Requests offline access.
+    .setParam('access_type', 'offline')
+
+  // Consent prompt is required to ensure a refresh token is always
+  // returned when requesting offline access.
+    .setParam('prompt', 'consent');
+}
+
+function authCallback(request) {
+  let result = [];
+  CALENDARS_TO_MERGE.forEach((calendarObj) => {
+    if (calendarObj.provider === 'microsoft') {
+      var azureService = getAzureService_(calendarObj);
+      var isAuthorized = azureService.handleCallback(request);
+      if (isAuthorized) {
+        result.push(calendarObj.address + " is setup!")
+      } else {
+        result.push(calendarObj.address + " is not setup")
+      }
+    }
+  });
+  return HtmlService.createHtmlOutput(result.join('<br/>') + ' You can close this tab');
+}
+
 class MicrosoftCalendar {
+  baseUrl = 'https://graph.microsoft.com/v1.0/me';
   constructor(obj) {
     this.address = obj.address;
-    this.token = obj.token;
     this.events;
     this.apiCalls = [];
+    const azureService = getAzureService_(obj);
+    this.token = azureService.getAccessToken();
   }
 
   retrieve(startTime, endTime) {
     const items = [];
-    let nextPage = MICROSOFT_ENDPOINT_BASE +
+    let nextPage = this.baseUrl +
       `/calendarview?startdatetime=${startTime.toISOString()}&enddatetime=${endTime.toISOString()}`
     do {
       const response = UrlFetchApp.fetch(nextPage, {
@@ -379,6 +450,7 @@ class MicrosoftCalendar {
       attendees: microsoftCal.attendees.map(({status, emailAddress}) => ({
         email: emailAddress.address,
         responseStatus: status.response,
+        self: emailAddress.address === this.address,
       })),
     };
   }
@@ -422,6 +494,8 @@ class MicrosoftCalendar {
 }
 
 class GoogleCalendar {
+  baseUrl = 'https://www.googleapis.com/calendar/v3/calendars';
+
   constructor(obj) {
     this.address = obj.address;
     this.events;
@@ -475,7 +549,7 @@ class GoogleCalendar {
 
     this.apiCalls.push({
       method: 'POST',
-      endpoint: `${GOOGLE_ENDPOINT_BASE}/${this.address}/events`,
+      endpoint: `${this.baseUrl}/${this.address}/events`,
       requestBody,
       loggableSummary: requestBody.summary,
     });
@@ -485,7 +559,7 @@ class GoogleCalendar {
   addDeleteCall(event) {
     this.apiCalls.push({
       method: 'DELETE',
-      endpoint: `${GOOGLE_ENDPOINT_BASE}/${this.address}/events/${event.getId()
+      endpoint: `${this.baseUrl}/${this.address}/events/${event.getId()
               .replace('@google.com', '')}`,
       loggableSummary: event.summary,
     });

@@ -1,6 +1,11 @@
-<img src="logo_merge.svg" width="100%" height="100" alt="Sync Multiple Google Calendars Together" />
+<img src="logo_merge.svg" width="100%" height="100" alt="Sync Multiple Calendars Together" />
 
-# Sync Multiple Google Calendars Together
+
+https://github.com/googleworkspace/apps-script-oauth2
+1B7FSrk5Zi6L1rSxxTDgDEUsPzlukDsi4KGuTMorsTQHhGBzBkMun4iDF
+
+
+# Sync Multiple Calendars Together
 
 [Video Guide here]
 
@@ -17,20 +22,68 @@ you've already got events scheduled.
 Throughout this doc I use two terms a lot:
 
 **Primary Event** - A real event on a calendar
+
 **Merged Event** - A placeholder on a calendar representing a Primary Event on another calendar
 
 # Requirements
 
-- All accounts must be Google accounts (Google Suites are fine)
+- All accounts must be either Microsoft Office 365 or Google/Google Suites accounts
+- You need to be able to setup a Google Apps script
 - Only install on one of the merged calendar accounts
-  - The account needs to have "Make changes to events" to all calendars; some clients may disable
-    this access to external accounts - in this case you'll need to setup the script on the client
-    account and allow access to it to the R&P calendar
+  - The account needs to have "Make changes to events" to all calendars; some companies may disable
+    this access to external accounts, so set it up on the most restrictive
 - If you're already manually duplicating events between calendars, you'll need to do one of the
   following or `MergeCalendarsTogether` will treat the duplicates as Primary events
   * Delete the duplicates
   * Rename the duplicates with the Prefix to allow `MergeCalendarsTogether` to manage those events as
     Merged events
+
+## Microsoft Accounts
+
+For each of your Microsoft accounts, you'll need to setup a new Application in the Azure Management
+tool. Once you've created the Google script in Step 3 below, click on the "Project Settings" gear
+icon on the left, then copy the Script ID. Then:
+
+1. Generate a new "App Registration"
+  - Go to https://aad.portal.azure.com
+  - Click "Azure Active Directory" on left
+  - Click "App registrations" on sub-panel
+  - Click "New Registration" at top
+  - Provide name (e.g., "Calendar Merge")
+  - Leave "Accounts in this organizational directory only" selected
+  - Choose "Web" from the "Redirect URI" dropdown, and enter (replace your ScriptId from above in the URL)
+  - ```https://script.google.com/macros/d/ScriptId/usercallback```
+  - **PROBABLY NEED TO ADD REDIRECT AT THIS POINT?**
+  - Click Register
+1. Add Calendar.ReadWrite Permissions
+  - Click "API Permissions" on sub-panel
+  - Click "Add Permission" under "Configured permissions"
+  - Click large "Microsoft Graph" card on right
+  - Click "Delegated Permissions"
+  - Search/Find "Calendar" and choose "Calendars.ReadWrite"
+  - Click "Add permission"
+1. Obtain a Client Secret for your Google Scripts project
+  - Click "Certificates & secrets" on the subpanel
+  - Click "New client secret" under "Client Secrets" tab
+  - Enter meaningful Description (e.g., "Google Script")
+  - Set Expires to 24 months (or however frequently you want to go through this again)
+  - Click Add
+  - COPY THE VALUE - this is the only time you'll be able to see the value, and if you don't copy it you'll need to
+    repeat this step
+1. Allow Access tokens from Authorization endpoint
+  - Click "Authentication" on the subpanel
+  - Scroll to the bottom of the screen and click "Access tokens (used for implicit flows)"
+  - Click Save at the bottom of the page
+1. Acquire your ClientID an TenantID
+  - Click "Overview" on the subpanel
+  - Copy your "Application (client) ID" and "Directory (tenant) ID"
+1. Fill out the "CALENDERS_TO_MERGE" section, using "microsoft" for the `provider`
+1. Select "ShowAuthorizationURLS" from the "Run" dropdown
+1. Open provided URL(s) in another browser window
+  - Click your email address or login
+  - Verify the name you used in Step 3 is present in the window.
+  - Click Acccept
+  - You'll be redirect back to Google - Login with the account you started your project in.
 
 ## Getting Started
 
