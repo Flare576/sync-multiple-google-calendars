@@ -187,7 +187,7 @@ it('SortEvents should end up with events in primary', () => {
     start: {dateTime: 1111},
     summary: 'I am primary event',
   }
-  const calendar = objectUnderTest.SortEvents(1, [primaryEvent])
+  const calendar = objectUnderTest.SortEvents([primaryEvent])
   const primaryDateTime = calendar.primary[new Date(1111).toUTCString()]
   return primaryDateTime.length === 1 && primaryDateTime[0].summary === primaryEvent.summary
 })
@@ -197,7 +197,7 @@ it('SortEvents should end up with events in merged', () => {
     start: {dateTime: 1111},
     summary: `${objectUnderTest.MERGE_PREFIX}I am merged event`,
   }
-  const calendar = objectUnderTest.SortEvents(1, [mergedEvent])
+  const calendar = objectUnderTest.SortEvents([mergedEvent])
   const mergedDateTime = calendar.merged[new Date(1111).toUTCString()]
   return mergedDateTime.length === 1 && mergedDateTime[0].summary === mergedEvent.summary
 })
