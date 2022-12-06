@@ -40,50 +40,49 @@ tool. Once you've created the Google script in Step 3 below, click on the "Proje
 icon on the left, then copy the Script ID. Then:
 
 1. Generate a new "App Registration"
-  - Go to https://aad.portal.azure.com
-  - Click "Azure Active Directory" on left
-  - Click "App registrations" on sub-panel
-  - Click "New Registration" at top
-  - Provide name (e.g., "Calendar Merge")
-  - Leave "Accounts in this organizational directory only" selected
-  - Choose "Web" from the "Redirect URI" dropdown, and enter (replace your ScriptId from above in the URL)
-  - ```https://script.google.com/macros/d/ScriptId/usercallback```
-  - **PROBABLY NEED TO ADD REDIRECT AT THIS POINT?**
-  - Click Register
+    - Go to https://aad.portal.azure.com
+    - Click "Azure Active Directory" on left
+    - Click "App registrations" on sub-panel
+    - Click "New Registration" at top
+    - Provide name (e.g., "Calendar Merge")
+    - Leave "Accounts in this organizational directory only" selected
+    - Choose "Web" from the "Redirect URI" dropdown, and enter (replace your ScriptId from above in the URL)
+        ```https://script.google.com/macros/d/ScriptId/usercallback```
+    - Click Register
 1. Add Calendar.ReadWrite Permissions
-  - Click "API Permissions" on sub-panel
-  - Click "Add Permission" under "Configured permissions"
-  - Click large "Microsoft Graph" card on right
-  - Click "Delegated Permissions"
-  - Search/Find "Calendar" and choose "Calendars.ReadWrite"
-  - Click "Add permission"
+    - Click "API Permissions" on sub-panel
+    - Click "Add Permission" under "Configured permissions"
+    - Click large "Microsoft Graph" card on right
+    - Click "Delegated Permissions"
+    - Search/Find "Calendar" and choose "Calendars.ReadWrite"
+    - Click "Add permission"
 1. Obtain a Client Secret for your Google Scripts project
-  - Click "Certificates & secrets" on the subpanel
-  - Click "New client secret" under "Client Secrets" tab
-  - Enter meaningful Description (e.g., "Google Script")
-  - Set Expires to 24 months (or however frequently you want to go through this again)
-  - Click Add
-  - COPY THE VALUE - this is the only time you'll be able to see the value, and if you don't copy it you'll need to
-    repeat this step
+    - Click "Certificates & secrets" on the subpanel
+    - Click "New client secret" under "Client Secrets" tab
+    - Enter meaningful Description (e.g., "Google Script")
+    - Set Expires to 24 months (or however frequently you want to go through this again)
+    - Click Add
+    - COPY THE VALUE - this is the only time you'll be able to see the value, and if you don't copy it you'll need to
+      repeat this step
 1. Allow Access tokens from Authorization endpoint
-  - Click "Authentication" on the subpanel
-  - Scroll to the bottom of the screen and click "Access tokens (used for implicit flows)"
-  - Click Save at the bottom of the page
+    - Click "Authentication" on the subpanel
+    - Scroll to the bottom of the screen and click "Access tokens (used for implicit flows)"
+    - Click Save at the bottom of the page
 1. Acquire your ClientID an TenantID
-  - Click "Overview" on the subpanel
-  - Copy your "Application (client) ID" and "Directory (tenant) ID"
+    - Click "Overview" on the subpanel
+    - Copy your "Application (client) ID" and "Directory (tenant) ID"
 1. Update the Google Apps Script
-  - Fill out the "CALENDERS_TO_MERGE" section, using "microsoft" for the `provider`
-  - Click the "+" next to the Library button on the left and enter
-    `1B7FSrk5Zi6L1rSxxTDgDEUsPzlukDsi4KGuTMorsTQHhGBzBkMun4iDF`
-       > Note: this the [Google OAuth Library]
-  - Click Lookup, then click "Add" (Default version/Identifiers are fine!)
+    - Fill out the "CALENDERS_TO_MERGE" section, using "microsoft" for the `provider`
+    - Click the "+" next to the Library button on the left and enter
+      `1B7FSrk5Zi6L1rSxxTDgDEUsPzlukDsi4KGuTMorsTQHhGBzBkMun4iDF`
+         > Note: this the [Google OAuth Library]
+    - Click Lookup, then click "Add" (Default version/Identifiers are fine!)
 1. Select "ShowAuthorizationURLS" from the "Run" dropdown
 1. Open provided URL(s) in another browser window
-  - Click your email address or login
-  - Verify the name you used in Step 3 is present in the window.
-  - Click Acccept
-  - You'll be redirect back to Google - Login with the account you started your project in.
+    - Click your email address or login
+    - Verify the name you used in Step 3 is present in the window.
+    - Click Acccept
+    - You'll be redirect back to Google - Login with the account you started your project in.
 
 ## Getting Started
 
