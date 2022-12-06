@@ -1,10 +1,5 @@
 <img src="logo_merge.svg" width="100%" height="100" alt="Sync Multiple Calendars Together" />
 
-
-https://github.com/googleworkspace/apps-script-oauth2
-1B7FSrk5Zi6L1rSxxTDgDEUsPzlukDsi4KGuTMorsTQHhGBzBkMun4iDF
-
-
 # Sync Multiple Calendars Together
 
 [Video Guide here]
@@ -77,7 +72,12 @@ icon on the left, then copy the Script ID. Then:
 1. Acquire your ClientID an TenantID
   - Click "Overview" on the subpanel
   - Copy your "Application (client) ID" and "Directory (tenant) ID"
-1. Fill out the "CALENDERS_TO_MERGE" section, using "microsoft" for the `provider`
+1. Update the Google Apps Script
+  - Fill out the "CALENDERS_TO_MERGE" section, using "microsoft" for the `provider`
+  - Click the "+" next to the Library button on the left and enter
+    `1B7FSrk5Zi6L1rSxxTDgDEUsPzlukDsi4KGuTMorsTQHhGBzBkMun4iDF`
+       > Note: this the [Google OAuth Library]
+  - Click Lookup, then click "Add" (Default version/Identifiers are fine!)
 1. Select "ShowAuthorizationURLS" from the "Run" dropdown
 1. Open provided URL(s) in another browser window
   - Click your email address or login
@@ -224,6 +224,7 @@ Original: MIT © [Ali Karbassi]
 Original: MIT © Flare576
 
 [video guide here]: https://youtu.be/qH2W_lex3NU
+[Google OAuth Library]: https://github.com/googleworkspace/apps-script-oauth2
 [ali karbassi]: http://karbassi.com
 [google apps scripts]: https://script.google.com/intro
 [mergecalendarstogether.gs]: ../MergeCalendarsTogether.gs
