@@ -60,6 +60,8 @@ Throughout this doc I use two terms a lot:
    - ⚠️ If you get an error (like `TypeError: Cannot read property 'summary' of
      undefined`) in the console, check that you selected the right function to
      execute
+   - ⚠️ If you get an error (like `Error: Access not granted or expired.`) and you're using a Microsoft
+     account, repeat the *Authorize your app to use your account* step
 1. Click on `Triggers` clock icon on the left panel to add a trigger. Click on `Add Trigger`.
 
    - You have two choices, "Time-driven" or "From calendar".

@@ -1,17 +1,30 @@
 // Calendars to merge.
+//
+// Setting "obfuscateAsDestination" to true will cause all merged events on that calendar to have generic
+// placeholder text for summary, description, and location.
+//   - This use useful if you have a client with whom you don't wish to share details of your appointments
+//
+// Setting "obfuscateAsOrigin" to true will cause all other calenders to have generic
+// placeholder text for summary, description, and location for events originating from that calendar.
+//   - This is useful if you have a client from whom you don't want the details of appointments going to others
+//
 const CALENDARS_TO_MERGE = [
   // Format for Google Accounts
   {
     address: 'calendar-id1@company.com',
-    provider: 'google', // valid providers are 'google' or 'microsoft'
+    provider: 'google',
+    obfuscateAsDestination: false,
+    obfuscateAsOrigin: false,
   },
   // Format for Microsoft Accounts
   {
     address: 'calendar-id2@company.com',
-    provider: 'microsoft', // valid providers are 'google' or 'microsoft'
+    provider: 'microsoft',
     clientSecret: 'from_azure_setup_process',
     clientId: 'from_azure_setup_process',
     tenantId: 'from_azure_setup_process',
+    obfuscateAsDestination: false,
+    obfuscateAsOrigin: false,
   },
 ];
 
@@ -58,7 +71,7 @@ const USER_COPY_SELF_ATTENDANCE_STATUS = false;
 // DO NOT TOUCH FROM HERE ON
 // ----------------------------------------------------------------------------
 
-const VERSION = '0.2.0';
+const VERSION = '0.2.1';
 const MERGE_PREFIX = '🔄 ';
 const DESC_NOT_COPIED_MSG = '(description not copied)'
 const SUMMARY_NOT_COPIED_MSG = '(summary not copied)'
@@ -156,23 +169,23 @@ function IsOnIgnoreList(event) {
   return false
 }
 
-function IsOnObfuscateList(event) {
+function IsOnObfuscateList(eventSummary) {
   for (const currRe of OBFUSCATE_LIST_REGEXES) {
-    const isMatch = new RegExp(currRe).test(event.summary)
+    const isMatch = new RegExp(currRe).test(eventSummary)
     if (isMatch) {
-      log.info(`Obfuscating event "${event.summary}" that matches regex "${currRe}"`)
+      log.info(`Obfuscating event "${eventSummary}" that matches regex "${currRe}"`)
       return true
     }
   }
   return false
 }
 
-function GetMergeSummary(event) {
-  return `${MERGE_PREFIX}${event.summary}`;
+function GetMergeSummary(eventSummary) {
+  return `${MERGE_PREFIX}${eventSummary}`;
 }
 
-function IsMergeSummary(event) {
-  return (event.summary || '').startsWith(MERGE_PREFIX);
+function IsMergeSummary(eventSummary) {
+  return (eventSummary || '').startsWith(MERGE_PREFIX);
 }
 
 function GetRealStart(event) {
@@ -184,41 +197,41 @@ function DateObjectToItems(dateObject) {
   return Object.keys(dateObject).reduce((items, day) => items.concat(dateObject[day]), [])
 }
 
-function ExistsInOrigin(origin, mergedEvent) {
+function ExistsInOrigin(origin, destination, mergedEvent) {
   const realStart = GetRealStart(mergedEvent);
-  return !!origin.primary[realStart]
+  return !!origin.events.primary[realStart]
     ?.some(originEvent => {
-      return mergedEvent.summary === GetMergeSummary(originEvent) &&
+      // If the destination is obfuscated, we'll just be able to tell there's an event at the same time
+      return destination.obfuscateTo || (
+        mergedEvent.summary === GetMergeSummary(originEvent.summary) &&
         mergedEvent.location === originEvent.location &&
         AttendeeSelfStatusMatches(originEvent, mergedEvent)
+      );
     })
 }
 
 function ExistsInDestination(destination, originEvent) {
   const realStart = GetRealStart(originEvent);
-  return !!destination.merged[realStart]
+  return !!destination.events.merged[realStart]
     ?.some(mergedEvent => {
-      return mergedEvent.summary === GetMergeSummary(originEvent) &&
-        mergedEvent.location === originEvent.location &&
-        !isDescWrong(mergedEvent) && // sorry for the double negative :'(
+      const checkSummary = destination.obfuscateTo ? SUMMARY_NOT_COPIED_MSG : originEvent.summary;
+      const checkLocation = destination.obfuscateTo ? LOC_NOT_COPIED_MSG : originEvent.location;
+      const checkDesc = destination.obfuscateTo || !INCLUDE_DESC() ? DESC_NOT_COPIED_MSG : originEvent.description;
+      return mergedEvent.summary === GetMergeSummary(checkSummary) &&
+        mergedEvent.location === checkLocation &&
+        mergedEvent.description === checkDesc &&
         AttendeeSelfStatusMatches(originEvent, mergedEvent)
     })
 }
 
-function GetDesc(event) {
-  if (!INCLUDE_DESC()) {
-    return DESC_NOT_COPIED_MSG
-  }
-  return event.description
-}
-
-function isDescWrong(event) {
-  if (INCLUDE_DESC()) {
-    const shouldHaveDescButDoesNot = event.description === DESC_NOT_COPIED_MSG
-    return shouldHaveDescButDoesNot
-  }
-  const shouldNotHaveDescButDoes = event.description !== DESC_NOT_COPIED_MSG
-  return shouldNotHaveDescButDoes
+function NeedsObfuscation(destination, event) {
+  const shouldObfuscate = destination.obfuscateTo || IsOnObfuscateList(event.summary);
+  // If the event should be obfuscated, but isn't...
+  return shouldObfuscate && (
+    event.location !== LOC_NOT_COPIED_MSG ||
+    event.description !== DESC_NOT_COPIED_MSG ||
+    event.summary !== GetMergeSummary(SUMMARY_NOT_COPIED_MSG)
+  );
 }
 
 function AttendeeSelfStatusMatches(originEvent, mergedEvent) {
@@ -250,7 +263,7 @@ function SortEvents(items) {
       }
       const realStart = GetRealStart(event);
 
-      if (IsMergeSummary(event)) {
+      if (IsMergeSummary(event.summary)) {
         const eventDateTime = merged[realStart] || [];
         if (eventDateTime.some(e => e.summary === event.summary)) {
           event.isDuplicate = true;
@@ -265,18 +278,7 @@ function SortEvents(items) {
           return
         }
         const eventDateTime = primary[realStart] || [];
-        const [summary, description, location] = (() => {
-          if (!IsOnObfuscateList(event)) {
-            return [event.summary, event.description, event.location]
-          }
-          return [SUMMARY_NOT_COPIED_MSG, DESC_NOT_COPIED_MSG, LOC_NOT_COPIED_MSG]
-        })()
-        eventDateTime.push({
-          ...event,
-          summary,
-          description,
-          location,
-        })
+        eventDateTime.push(event)
         primary[realStart] = eventDateTime;
       }
     });
@@ -304,9 +306,6 @@ function RetrieveCalendars(startTime, endTime) {
 }
 
 function MergeCalendars (calendars) {
-  // One Calender per batch...
-  const batchSets = {};
-
   calendars.forEach(cal => {
     // Now that we have all events for all calendars, ensure each calendar's
     // primary events are merged to others
@@ -315,7 +314,7 @@ function MergeCalendars (calendars) {
         // Don't send to the current calendar
         .filter(destination => destination.address !== cal.address)
         .forEach(destination => {
-          if (!ExistsInDestination(destination.events, originEvent)) {
+          if (!ExistsInDestination(destination, originEvent)) {
             const added = destination.addCreateCall(originEvent);
             log.debug(`Pre-event update body for destination:  ${destination.address} :: ${JSON.stringify(added)}`);
           }
@@ -326,8 +325,8 @@ function MergeCalendars (calendars) {
     DateObjectToItems(cal.events.merged).forEach(mergedEvent => {
       const primaryFound = calendars
         .some(origin => origin.address !== cal.address &&
-            ExistsInOrigin(origin.events, mergedEvent));
-      if (!primaryFound || mergedEvent.isDuplicate || isDescWrong(mergedEvent)) {
+            ExistsInOrigin(origin, cal, mergedEvent));
+      if (!primaryFound || mergedEvent.isDuplicate || NeedsObfuscation(cal, mergedEvent)) {
         cal.addDeleteCall(mergedEvent)
       }
     });
@@ -413,6 +412,8 @@ function authCallback(request) {
 class MicrosoftCalendar {
   constructor(obj) {
     this.address = obj.address;
+    this.obfuscateTo = obj.obfuscateAsDestination;
+    this.obfuscateFrom = obj.obfuscateAsOrigin;
     this.events;
     this.apiCalls = [];
     const azureService = getAzureService_(obj);
@@ -431,23 +432,26 @@ class MicrosoftCalendar {
         }
       });
       const payload = JSON.parse(response.getContentText());
-      items.push(...payload.value.map(event => this.parseMicrosoftCal(event)));
+      items.push(...payload.value.map(event => this.parseEvent(event)));
       nextPage = payload["@odata.nextLink"];
     } while(nextPage);
     log.info(`Found ${items.length} items for ${this.address}`)
     this.events = SortEvents(items);
   }
 
-  parseMicrosoftCal(microsoftCal) {
+  parseEvent(event) {
+    const shouldObfuscate = this.obfuscateFrom || IsOnObfuscateList(event.subject);
     return {
-      getId: () => microsoftCal.id,
-      start: microsoftCal.start,
-      end: microsoftCal.end,
-      description: microsoftCal.body.content,
-      location: microsoftCal.location.displayName,
-      summary: microsoftCal.subject,
-      transparency: microsoftCal.showAs === 'free' ? 'transparent' : 'opaque',
-      attendees: microsoftCal.attendees.map(({status, emailAddress}) => ({
+      id: event.id,
+      start: {
+        dateTime: event.start.dateTime + 'Z',
+      },
+      end: event.end,
+      description: shouldObfuscate || !INCLUDE_DESC() ? DESC_NOT_COPIED_MSG : event.body.content,
+      location: shouldObfuscate ? LOC_NOT_COPIED_MSG : event.location.displayName,
+      summary: shouldObfuscate ? SUMMARY_NOT_COPIED_MSG : event.subject,
+      transparency: event.showAs === 'free' ? 'transparent' : 'opaque',
+      attendees: event.attendees.map(({status, emailAddress}) => ({
         email: emailAddress.address,
         responseStatus: status.response,
         self: emailAddress.address === this.address,
@@ -457,12 +461,15 @@ class MicrosoftCalendar {
 
   addCreateCall(event) {
     const requestBody = {
-      subject: GetMergeSummary(event),
-      location: event.location,
+      subject: GetMergeSummary(this.obfuscateTo ? SUMMARY_NOT_COPIED_MSG : event.summary),
+      location: {
+        displayName: this.obfuscateTo ? LOC_NOT_COPIED_MSG : event.location,
+        locationType: "default",
+      },
       reminderMinutesBeforeStart: 0,
       body: {
         contentType: 'text',
-        content: GetDesc(event),
+        content: this.obfuscateTo || !INCLUDE_DESC() ? DESC_NOT_COPIED_MSG : event,
       },
       start: event.start,
       end: event.end,
@@ -480,7 +487,7 @@ class MicrosoftCalendar {
   addDeleteCall(event) {
     this.apiCalls.push({
       method: 'DELETE',
-      endpoint: `/me/events/${event.getId()}`,
+      endpoint: `/me/events/${event.id}`,
       loggableSummary: event.subject,
     });
   }
@@ -488,7 +495,7 @@ class MicrosoftCalendar {
   executeCalls() {
     return new MicrosoftBatchRequest({
       requests: this.apiCalls,
-      accessToken: token,
+      accessToken: this.token,
     });
   }
 }
@@ -496,6 +503,8 @@ class MicrosoftCalendar {
 class GoogleCalendar {
   constructor(obj) {
     this.address = obj.address;
+    this.obfuscateTo = obj.obfuscateAsDestination;
+    this.obfuscateFrom = obj.obfuscateAsOrigin;
     this.events;
     this.apiCalls = [];
     this.baseUrl = 'https://www.googleapis.com/calendar/v3/calendars';
@@ -525,22 +534,37 @@ class GoogleCalendar {
       }
 
       const result = Calendar.Events.list(this.address, options);
-      items.push(...result.items)
+      items.push(...result.items.map(event => this.parseEvent(event)));
       nextPage = result.nextPageToken;
     } while(nextPage);
     log.info(`Found ${items.length} items for ${this.address}`)
     this.events = SortEvents(items);
   }
 
+  parseEvent(event) {
+    const id = event.getId().replace('@google.com', '');
+    const shouldObfuscate = this.obfuscateFrom || IsOnObfuscateList(event.summary);
+    return {
+      id,
+      start: event.start,
+      end: event.end,
+      description: shouldObfuscate || !INCLUDE_DESC() ? DESC_NOT_COPIED_MSG : event.description,
+      location: shouldObfuscate ? LOC_NOT_COPIED_MSG : event.location,
+      summary: shouldObfuscate ? SUMMARY_NOT_COPIED_MSG : event.summary,
+      transparency: event.transparency,
+      attendees: event.attendees,
+    };
+  }
+
   addCreateCall(event) {
     const requestBody = {
-      summary: GetMergeSummary(event),
-      location: event.location,
+      summary: GetMergeSummary(this.obfuscateTo ? SUMMARY_NOT_COPIED_MSG : event.summary),
+      location: this.obfuscateTo ? LOC_NOT_COPIED_MSG : event.location,
       reminders: {
         useDefault: false,
         overrides: [], // No reminders
       },
-      description: GetDesc(event),
+      description: this.obfuscateTo || !INCLUDE_DESC() ? DESC_NOT_COPIED_MSG : event,
       start: event.start,
       end: event.end,
       attendees: GetAttendeeSelf(event, this.address),
@@ -558,8 +582,7 @@ class GoogleCalendar {
   addDeleteCall(event) {
     this.apiCalls.push({
       method: 'DELETE',
-      endpoint: `${this.baseUrl}/${this.address}/events/${event.getId()
-              .replace('@google.com', '')}`,
+      endpoint: `${this.baseUrl}/${this.address}/events/${event.id}`,
       loggableSummary: event.summary,
     });
   }
@@ -575,16 +598,17 @@ class GoogleCalendar {
 
 if (typeof module !== 'undefined') {
   module.exports = {
+    getAzureService_,
     GetStartEndDates,
     ExistsInOrigin,
     ExistsInDestination,
     MERGE_PREFIX,
     DESC_NOT_COPIED_MSG,
-    isDescWrong,
     SortEvents,
     IGNORE_LIST_REGEXES,
     IsOnIgnoreList,
     IsOnObfuscateList,
+    NeedsObfuscation,
     OBFUSCATE_LIST_REGEXES,
     SUMMARY_NOT_COPIED_MSG,
     LOC_NOT_COPIED_MSG,
