@@ -13,6 +13,13 @@
         "serviceId": "calendar",
         "version": "v3"
       }
+    ],
+    "libraries": [
+      {
+        "userSymbol": "OAuth2",
+        "version": "43",
+        "libraryId": "1B7FSrk5Zi6L1rSxxTDgDEUsPzlukDsi4KGuTMorsTQHhGBzBkMun4iDF"
+      }
     ]
   }
 }
