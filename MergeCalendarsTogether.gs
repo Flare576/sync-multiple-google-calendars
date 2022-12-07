@@ -10,8 +10,8 @@ const CALENDARS_TO_MERGE = [
     address: 'calendar-id2@company.com',
     provider: 'microsoft', // valid providers are 'google' or 'microsoft'
     clientSecret: 'from_azure_setup_process',
-    tenantId: 'from_azure_setup_process',
     clientId: 'from_azure_setup_process',
+    tenantId: 'from_azure_setup_process',
   },
 ];
 
@@ -411,7 +411,6 @@ function authCallback(request) {
 }
 
 class MicrosoftCalendar {
-  baseUrl = 'https://graph.microsoft.com/v1.0/me';
   constructor(obj) {
     this.address = obj.address;
     this.events;
@@ -422,8 +421,9 @@ class MicrosoftCalendar {
 
   retrieve(startTime, endTime) {
     const items = [];
-    let nextPage = this.baseUrl +
-      `/calendarview?startdatetime=${startTime.toISOString()}&enddatetime=${endTime.toISOString()}`
+    let nextPage = 'https://graph.microsoft.com/v1.0/me/calendarview'
+      + `?startdatetime=${startTime.toISOString()}`
+      + `&enddatetime=${endTime.toISOString()}`;
     do {
       const response = UrlFetchApp.fetch(nextPage, {
         headers: {
@@ -431,7 +431,7 @@ class MicrosoftCalendar {
         }
       });
       const payload = JSON.parse(response.getContentText());
-      items.push(...payload.value.map(this.parseMicrosoftCal));
+      items.push(...payload.value.map(event => this.parseMicrosoftCal(event)));
       nextPage = payload["@odata.nextLink"];
     } while(nextPage);
     log.info(`Found ${items.length} items for ${this.address}`)
@@ -494,12 +494,11 @@ class MicrosoftCalendar {
 }
 
 class GoogleCalendar {
-  baseUrl = 'https://www.googleapis.com/calendar/v3/calendars';
-
   constructor(obj) {
     this.address = obj.address;
     this.events;
     this.apiCalls = [];
+    this.baseUrl = 'https://www.googleapis.com/calendar/v3/calendars';
   }
 
   retrieve(startTime, endTime) {

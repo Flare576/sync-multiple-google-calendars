@@ -96,9 +96,9 @@ Throughout this doc I use two terms a lot:
 For each of your Microsoft accounts, you'll need to setup a new Application in the Azure Management
 tool.
 
-1. Acquire the ScriptId of your Google Apps script
+1. Acquire the SCRIPTID of your Google Apps script
     - After completing Step 3 above, click Project Settings gear on left
-    - Copy ScriptId from "ID's" section
+    - Copy `Script Id` from "ID's" section
 1. Generate a new "App Registration"
     - In another tab/window, Log into https://aad.portal.azure.com
     - Click "Azure Active Directory" on left
@@ -108,7 +108,7 @@ tool.
     - Leave "Accounts in this organizational directory only" selected
     - Choose "Web" from the "Redirect URI" dropdown, and enter (replace your ScriptId from above in
       the URL)
-        ```https://script.google.com/macros/d/ScriptId/usercallback```
+        ```https://script.google.com/macros/d/SCRIPTID/usercallback```
     - Click Register
 1. Add Calendar.ReadWrite Permissions
     - Click "API Permissions" on sub-panel
@@ -134,18 +134,13 @@ tool.
     - Copy your "Application (client) ID" and "Directory (tenant) ID"
 1. Update the Google Apps Script
     - Fill out the "CALENDERS_TO_MERGE" section, using "microsoft" for the `provider`
-1. Add the Oauth Library to the project
-    - Click the "+" next to the Library button on the left and enter
-      `1B7FSrk5Zi6L1rSxxTDgDEUsPzlukDsi4KGuTMorsTQHhGBzBkMun4iDF`
-         > Note: this the [Google OAuth Library]
-    - Click Lookup, then click "Add" (Default version/Identifiers are fine!)
 1. Authorize your app to use your account
     - Select "ShowAuthorizationURLS" from the "Run" dropdown
-    - Click Run; to console at the bottom of the editor will have a URL for each Microsoft account
+    - Click Run; the console at the bottom of the editor will have a URL for each Microsoft account
       you've setup
     - Open provided URL(s) in another browser window
     - Click your email address or login
-    - Verify the name you used in Step 3 is present in the window.
+    - Verify the name you used in Step 2 is present in the window.
     - Click Acccept
     - You'll be redirect back to Google - if necessary, login with the account you started your
       project in.
