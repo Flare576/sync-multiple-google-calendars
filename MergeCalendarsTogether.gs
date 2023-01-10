@@ -124,8 +124,15 @@ function IsMergeSummary(event) {
 }
 
 function GetRealStart(event) {
+  return GetRealDate(event.start);
+}
+function GetRealEnd(event) {
+  return GetRealDate(event.end);
+}
+
+function GetRealDate(dateTimeHolder) {
   // Convert all date-times to UTC for comparisons
-  return new Date(event.start.dateTime).toUTCString();
+  return new Date(dateTimeHolder.dateTime).toUTCString();
 }
 
 function DateObjectToItems(dateObject) {
@@ -137,6 +144,7 @@ function ExistsInOrigin(origin, mergedEvent) {
   return !!origin.primary[realStart]
     ?.some(originEvent => {
       return mergedEvent.summary === GetMergeSummary(originEvent) &&
+        GetRealEnd(mergedEvent) === GetRealEnd(originEvent) &&
         mergedEvent.location === originEvent.location
     })
 }
@@ -147,6 +155,7 @@ function ExistsInDestination(destination, originEvent) {
     ?.some(mergedEvent => {
       return mergedEvent.summary === GetMergeSummary(originEvent) &&
         mergedEvent.location === originEvent.location &&
+        GetRealEnd(mergedEvent) === GetRealEnd(originEvent) &&
         !isDescWrong(mergedEvent) // sorry for the double negative :'(
     })
 }
