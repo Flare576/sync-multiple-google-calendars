@@ -172,8 +172,8 @@ function ExistsInOrigin(origin, mergedEvent) {
   return !!origin.primary[realStart]
     ?.some(originEvent => {
       return mergedEvent.summary === GetMergeSummary(originEvent) &&
-        GetRealEnd(mergedEvent) === GetRealEnd(originEvent) &&
         mergedEvent.location === originEvent.location &&
+        GetRealEnd(mergedEvent) === GetRealEnd(originEvent) &&
         AttendeeSelfStatusMatches(originEvent, mergedEvent)
     })
 }
