@@ -284,6 +284,62 @@ it('should NOT match a summary to obfuscate', () => {
   return result
 })
 
+it('should return true when COPY_SELF_ATTENDANCE_STATUS is disabled', () => {
+  // attendees definitely don't match; would find diff if enabled
+  const originEvent = { attendees: {
+    self: true
+  }}
+  const mergedEvent = {}
+  return true === objectUnderTest.AttendeeSelfStatusMatches(originEvent, mergedEvent)
+})
+
+it('should return [] when COPY_SELF_ATTENDANCE_STATUS is disabled', () => {
+  const originEvent = {}
+  const destination = {}
+  const res = objectUnderTest.GetAttendeeSelf(originEvent, destination)
+  return (Array.isArray(res) && res.length === 0)
+})
+
+it('should return false when origin and merged have mismatched Attendee status', () => {
+  objectUnderTest.TEST_COPY_SELF_ATTENDANCE_STATUS = true;
+  const originEvent =  { attendees:
+    [{
+      email: 'user.email@cheeseburger.com',
+      self: true,
+      responseStatus: 'accepted'
+    }]}
+  const mergedEvent = { attendees:
+    [{
+      email: 'user.email@turducken.com',
+      self: true,
+      responseStatus: 'needsAction'
+    }]}
+  const res1 = (false === objectUnderTest.AttendeeSelfStatusMatches(originEvent, mergedEvent))
+  const res2 = (false === objectUnderTest.AttendeeSelfStatusMatches({attendees: []}, mergedEvent))
+
+  return res1 & res2
+})
+
+it('should return self attendee with updated email', () => {
+  objectUnderTest.TEST_COPY_SELF_ATTENDANCE_STATUS = true;
+  const originEvent = { attendees:
+    [{
+      email: 'user.email@cheeseburger.com',
+      self: true,
+      responseStatus: 'needsAction'
+    },
+    {
+      email: 'a.real.jerk@cheeseburger.com',
+      responseStatus: 'accepted'
+    }]}
+  const destination = {calendarId: 'another.email.address@whatever.com'}
+  const res = objectUnderTest.GetAttendeeSelf(originEvent, destination)
+  return (Array.isArray(res) &&
+    res[0].email === destination.calendarId &&
+    res[0].self === originEvent.attendees[0].self &&
+    res[0].responseStatus === originEvent.attendees[0].responseStatus);
+})
+
 function it(msg, fn) {
   try {
     if (fn()) {
