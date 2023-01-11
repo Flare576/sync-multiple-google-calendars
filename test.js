@@ -42,10 +42,14 @@ it('should use the right date range if modified', () => {
 
 it('should find event in origin when it exists', () => {
   const origin = {primary: {
-    [new Date(1111).toUTCString()]: [{ summary: 'Find me' }]
+    [new Date(1111).toUTCString()]: [{
+      end: {dateTime: 2222},
+      summary: 'Find me'
+    }]
   }}
   const mergedEvent = {
     start: {dateTime: 1111},
+    end: {dateTime: 2222},
     summary: `${objectUnderTest.MERGE_PREFIX}Find me`
   }
   return objectUnderTest.ExistsInOrigin(origin, mergedEvent)
@@ -53,7 +57,10 @@ it('should find event in origin when it exists', () => {
 
 it('should NOT find event in origin when it does not exist', () => {
   const origin = {primary: {
-    [new Date(1111).toUTCString()]: [{ summary: 'Do not find me' }]
+    [new Date(1111).toUTCString()]: [{
+      end: {dateTime: 2222},
+      summary: 'Do not find me'
+    }]
   }}
   const mergedEvent = {
     start: {dateTime: 1111},
@@ -65,12 +72,14 @@ it('should NOT find event in origin when it does not exist', () => {
 it('should NOT find event in origin when location is obscured', () => {
   const origin = {primary: {
     [new Date(1111).toUTCString()]: [{
+      end: {dateTime: 2222},
       summary: 'I changed to obscured',
       location: objectUnderTest.LOC_NOT_COPIED_MSG,
     }]
   }}
   const mergedEvent = {
     start: {dateTime: 1111},
+    end: {dateTime: 2222},
     summary: `${objectUnderTest.MERGE_PREFIX}I changed to obscured`,
     location: 'the real location',
   }
@@ -81,12 +90,14 @@ it('should find event in destination when it exists', () => {
   objectUnderTest.TEST_INCLUDE_DESC = true
   const destination = {merged: {
     [new Date(1111).toUTCString()]: [{
+      end: {dateTime: 2222},
       summary: `${objectUnderTest.MERGE_PREFIX}Find me`,
       description: 'some desc'
     }]
   }}
   const originEvent = {
     start: {dateTime: 1111},
+    end: {dateTime: 2222},
     summary: 'Find me',
     description: 'some desc'
   }
@@ -96,12 +107,14 @@ it('should find event in destination when it exists', () => {
 it('should NOT find event in destination when summary does not match', () => {
   const destination = {merged: {
     [new Date(1111).toUTCString()]: [{
+      end: {dateTime: 2222},
       summary: `${objectUnderTest.MERGE_PREFIX}Do not find me`,
       description: 'asdf'
     }]
   }}
   const originEvent = {
     start: {dateTime: 1111},
+    end: {dateTime: 2222},
     summary: 'Will not find anything',
     description: 'asdf'
   }
@@ -112,12 +125,14 @@ it('should NOT find event in destination when description does not match; not ob
   objectUnderTest.TEST_INCLUDE_DESC = true
   const destination = {merged: {
     [new Date(1111).toUTCString()]: [{
+      end: {dateTime: 2222},
       summary: `${objectUnderTest.MERGE_PREFIX}Matches`,
       description: objectUnderTest.DESC_NOT_COPIED_MSG
     }]
   }}
   const originEvent = {
     start: {dateTime: 1111},
+    end: {dateTime: 2222},
     summary: 'Matches',
     description: 'one'
   }
@@ -128,12 +143,14 @@ it('should NOT find event in destination when description does not match; is obs
   objectUnderTest.TEST_INCLUDE_DESC = false
   const destination = {merged: {
     [new Date(1111).toUTCString()]: [{
+      end: {dateTime: 2222},
       summary: `${objectUnderTest.MERGE_PREFIX}Matches`,
       description: 'should be obscured'
     }]
   }}
   const originEvent = {
     start: {dateTime: 1111},
+    end: {dateTime: 2222},
     summary: 'Matches',
     description: 'one'
   }
@@ -144,6 +161,7 @@ it('should NOT find event in destination when location does not match; is obscur
   objectUnderTest.TEST_INCLUDE_DESC = false
   const destination = {merged: {
     [new Date(1111).toUTCString()]: [{
+      end: {dateTime: 2222},
       summary: `${objectUnderTest.MERGE_PREFIX}Matches`,
       description: objectUnderTest.DESC_NOT_COPIED_MSG,
       location: objectUnderTest.LOC_NOT_COPIED_MSG,
@@ -151,6 +169,7 @@ it('should NOT find event in destination when location does not match; is obscur
   }}
   const originEvent = {
     start: {dateTime: 1111},
+    end: {dateTime: 2222},
     summary: 'Matches',
     description: objectUnderTest.DESC_NOT_COPIED_MSG,
     location: 'the real location',
@@ -185,6 +204,7 @@ it('should pass when desc is correctly excluded', () => {
 it('should end up with events in primary', () => {
   const primaryEvent = {
     start: {dateTime: 1111},
+    end: {dateTime: 2222},
     summary: 'I am primary event',
   }
   const calendar = objectUnderTest.SortEvents(1, [primaryEvent])
@@ -195,6 +215,7 @@ it('should end up with events in primary', () => {
 it('should end up with events in merged', () => {
   const mergedEvent = {
     start: {dateTime: 1111},
+    end: {dateTime: 2222},
     summary: `${objectUnderTest.MERGE_PREFIX}I am merged event`,
   }
   const calendar = objectUnderTest.SortEvents(1, [mergedEvent])
@@ -208,6 +229,7 @@ it('should obfuscate the summary, description, and location of a matched event',
   objectUnderTest.OBFUSCATE_LIST_REGEXES.push(obfuscatePattern)
   const primaryEvent = {
     start: {dateTime: 3333},
+    end: {dateTime: 2222},
     summary: 'I am a sensitive event',
     description: 'blah blah',
     location: 'secret lair',
@@ -231,6 +253,7 @@ it('should filter off ignore regexes', () => {
   objectUnderTest.IGNORE_LIST_REGEXES.push(ignorable)
   const event = {
     start: {dateTime: 1111},
+    end: {dateTime: 2222},
     summary: ignorable,
   }
   mockConsole()
@@ -248,6 +271,7 @@ it('should NOT filter off ignore regexes', () => {
   objectUnderTest.IGNORE_LIST_REGEXES.push(ignorable)
   const event = {
     start: {dateTime: 1111},
+    end: {dateTime: 2222},
     summary: '2 legit 2 quit',
   }
   const result = !objectUnderTest.IsOnIgnoreList(event)
@@ -260,6 +284,7 @@ it('should match a summary to obfuscate', () => {
   objectUnderTest.OBFUSCATE_LIST_REGEXES.push(obfuscatePattern)
   const event = {
     start: {dateTime: 1111},
+    end: {dateTime: 2222},
     summary: 'Blah Sensitive foo bar',
   }
   mockConsole()
@@ -277,6 +302,7 @@ it('should NOT match a summary to obfuscate', () => {
   objectUnderTest.OBFUSCATE_LIST_REGEXES.push(obfuscatePattern)
   const event = {
     start: {dateTime: 1111},
+    end: {dateTime: 2222},
     summary: 'Just a normal event',
   }
   const result = !objectUnderTest.IsOnObfuscateList(event)
