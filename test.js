@@ -41,8 +41,10 @@ it('should use the right date range if modified', () => {
 })
 
 it('should find event in origin when it exists', () => {
-  const origin = {primary: {
-    [new Date(1111).toUTCString()]: [{ summary: 'Find me' }]
+  const origin = {events: {
+    primary: {
+      [new Date(1111).toUTCString()]: [{ summary: 'Find me' }]
+    }
   }}
   const mergedEvent = {
     start: {dateTime: 1111},
@@ -52,8 +54,10 @@ it('should find event in origin when it exists', () => {
 })
 
 it('should NOT find event in origin when it does not exist', () => {
-  const origin = {primary: {
-    [new Date(1111).toUTCString()]: [{ summary: 'Do not find me' }]
+  const origin = {events: {
+    primary: {
+      [new Date(1111).toUTCString()]: [{ summary: 'Do not find me' }]
+    }
   }}
   const mergedEvent = {
     start: {dateTime: 1111},
@@ -63,11 +67,13 @@ it('should NOT find event in origin when it does not exist', () => {
 })
 
 it('should NOT find event in origin when location is obscured', () => {
-  const origin = {primary: {
-    [new Date(1111).toUTCString()]: [{
-      summary: 'I changed to obscured',
-      location: objectUnderTest.LOC_NOT_COPIED_MSG,
-    }]
+  const origin = {events: {
+    primary: {
+      [new Date(1111).toUTCString()]: [{
+        summary: 'I changed to obscured',
+        location: objectUnderTest.LOC_NOT_COPIED_MSG,
+      }]
+    }
   }}
   const mergedEvent = {
     start: {dateTime: 1111},
@@ -79,11 +85,13 @@ it('should NOT find event in origin when location is obscured', () => {
 
 it('should find event in destination when it exists', () => {
   objectUnderTest.TEST_INCLUDE_DESC = true
-  const destination = {merged: {
-    [new Date(1111).toUTCString()]: [{
-      summary: `${objectUnderTest.MERGE_PREFIX}Find me`,
-      description: 'some desc'
-    }]
+  const destination = {events: {
+    merged: {
+      [new Date(1111).toUTCString()]: [{
+        summary: `${objectUnderTest.MERGE_PREFIX}Find me`,
+        description: 'some desc'
+      }]
+    }
   }}
   const originEvent = {
     start: {dateTime: 1111},
@@ -94,11 +102,13 @@ it('should find event in destination when it exists', () => {
 })
 
 it('should NOT find event in destination when summary does not match', () => {
-  const destination = {merged: {
-    [new Date(1111).toUTCString()]: [{
-      summary: `${objectUnderTest.MERGE_PREFIX}Do not find me`,
-      description: 'asdf'
-    }]
+  const destination = {events: {
+    merged: {
+      [new Date(1111).toUTCString()]: [{
+        summary: `${objectUnderTest.MERGE_PREFIX}Do not find me`,
+        description: 'asdf'
+      }]
+    }
   }}
   const originEvent = {
     start: {dateTime: 1111},
@@ -110,11 +120,13 @@ it('should NOT find event in destination when summary does not match', () => {
 
 it('should NOT find event in destination when description does not match; not obscured', () => {
   objectUnderTest.TEST_INCLUDE_DESC = true
-  const destination = {merged: {
-    [new Date(1111).toUTCString()]: [{
-      summary: `${objectUnderTest.MERGE_PREFIX}Matches`,
-      description: objectUnderTest.DESC_NOT_COPIED_MSG
-    }]
+  const destination = {events: {
+    merged: {
+      [new Date(1111).toUTCString()]: [{
+        summary: `${objectUnderTest.MERGE_PREFIX}Matches`,
+        description: objectUnderTest.DESC_NOT_COPIED_MSG
+      }]
+    }
   }}
   const originEvent = {
     start: {dateTime: 1111},
@@ -126,11 +138,13 @@ it('should NOT find event in destination when description does not match; not ob
 
 it('should NOT find event in destination when description does not match; is obscured', () => {
   objectUnderTest.TEST_INCLUDE_DESC = false
-  const destination = {merged: {
-    [new Date(1111).toUTCString()]: [{
-      summary: `${objectUnderTest.MERGE_PREFIX}Matches`,
-      description: 'should be obscured'
-    }]
+  const destination = {events: {
+    merged: {
+      [new Date(1111).toUTCString()]: [{
+        summary: `${objectUnderTest.MERGE_PREFIX}Matches`,
+        description: 'should be obscured'
+      }]
+    }
   }}
   const originEvent = {
     start: {dateTime: 1111},
@@ -142,12 +156,14 @@ it('should NOT find event in destination when description does not match; is obs
 
 it('should NOT find event in destination when location does not match; is obscured', () => {
   objectUnderTest.TEST_INCLUDE_DESC = false
-  const destination = {merged: {
-    [new Date(1111).toUTCString()]: [{
-      summary: `${objectUnderTest.MERGE_PREFIX}Matches`,
-      description: objectUnderTest.DESC_NOT_COPIED_MSG,
-      location: objectUnderTest.LOC_NOT_COPIED_MSG,
-    }]
+  const destination = {events: {
+    merged: {
+      [new Date(1111).toUTCString()]: [{
+        summary: `${objectUnderTest.MERGE_PREFIX}Matches`,
+        description: objectUnderTest.DESC_NOT_COPIED_MSG,
+        location: objectUnderTest.LOC_NOT_COPIED_MSG,
+      }]
+    }
   }}
   const originEvent = {
     start: {dateTime: 1111},
@@ -158,28 +174,34 @@ it('should NOT find event in destination when location does not match; is obscur
   return !objectUnderTest.ExistsInDestination(destination, originEvent)
 })
 
-it('should find when desc incorrectly excluded', () => {
-  objectUnderTest.TEST_INCLUDE_DESC = true
-  const event = { description: objectUnderTest.DESC_NOT_COPIED_MSG }
-  return objectUnderTest.isDescWrong(event)
+it('NeedsObfuscation detects when summary is wrong', () => {
+  const destination = {obfuscateAsDestination: true}
+  const event = {
+    summary: `${objectUnderTest.MERGE_PREFIX}Not Obfuscated`,
+    description: objectUnderTest.DESC_NOT_COPIED_MSG,
+    location: objectUnderTest.LOC_NOT_COPIED_MSG,
+  }
+  return objectUnderTest.NeedsObfuscation(destination, event)
 })
 
-it('should find when desc is incorrectly included', () => {
-  objectUnderTest.TEST_INCLUDE_DESC = false
-  const event = { description: 'blah blah' }
-  return objectUnderTest.isDescWrong(event)
+it('NeedsObfuscation detects when desc is wrong', () => {
+  const destination = {obfuscateAsDestination: true}
+  const event = {
+    summary: `${objectUnderTest.MERGE_PREFIX+objectUnderTest.SUMMARY_NOT_COPIED_MSG}`,
+    description: "Clearly clear text",
+    location: objectUnderTest.LOC_NOT_COPIED_MSG,
+  }
+  return objectUnderTest.NeedsObfuscation(destination, event)
 })
 
-it('should pass when desc is correctly included', () => {
-  objectUnderTest.TEST_INCLUDE_DESC = true
-  const event = { description: 'blah blah' }
-  return !objectUnderTest.isDescWrong(event)
-})
-
-it('should pass when desc is correctly excluded', () => {
-  objectUnderTest.TEST_INCLUDE_DESC = false
-  const event = { description: objectUnderTest.DESC_NOT_COPIED_MSG }
-  return !objectUnderTest.isDescWrong(event)
+it('NeedsObfuscation detects when location is wrong', () => {
+  const destination = {obfuscateAsDestination: true}
+  const event = {
+    summary: `${objectUnderTest.MERGE_PREFIX+objectUnderTest.SUMMARY_NOT_COPIED_MSG}`,
+    description: objectUnderTest.DESC_NOT_COPIED_MSG,
+    location: "Pineapple Under the Sea",
+  }
+  return objectUnderTest.NeedsObfuscation(destination, event)
 })
 
 it('should end up with events in primary', () => {
@@ -187,8 +209,8 @@ it('should end up with events in primary', () => {
     start: {dateTime: 1111},
     summary: 'I am primary event',
   }
-  const calendar = objectUnderTest.SortEvents(1, [primaryEvent])
-  const primaryDateTime = calendar.primary[new Date(1111).toUTCString()]
+  const {primary, merged} = objectUnderTest.SortEvents([primaryEvent])
+  const primaryDateTime = primary[new Date(1111).toUTCString()]
   return primaryDateTime.length === 1 && primaryDateTime[0].summary === primaryEvent.summary
 })
 
@@ -197,8 +219,8 @@ it('should end up with events in merged', () => {
     start: {dateTime: 1111},
     summary: `${objectUnderTest.MERGE_PREFIX}I am merged event`,
   }
-  const calendar = objectUnderTest.SortEvents(1, [mergedEvent])
-  const mergedDateTime = calendar.merged[new Date(1111).toUTCString()]
+  const {primary, merged} = objectUnderTest.SortEvents([mergedEvent])
+  const mergedDateTime = merged[new Date(1111).toUTCString()]
   return mergedDateTime.length === 1 && mergedDateTime[0].summary === mergedEvent.summary
 })
 
@@ -332,12 +354,168 @@ it('should return self attendee with updated email', () => {
       email: 'a.real.jerk@cheeseburger.com',
       responseStatus: 'accepted'
     }]}
-  const destination = {calendarId: 'another.email.address@whatever.com'}
+  const destination = {address: 'another.email.address@whatever.com'}
   const res = objectUnderTest.GetAttendeeSelf(originEvent, destination)
   return (Array.isArray(res) &&
-    res[0].email === destination.calendarId &&
+    res[0].email === destination.address &&
     res[0].self === originEvent.attendees[0].self &&
     res[0].responseStatus === originEvent.attendees[0].responseStatus);
+})
+
+it('parseEvent should pass data through by default', () => {
+  const calObject = {
+    address: 'calendar-id1@company.com',
+    provider: 'google',
+    obfuscateAsDestination: false,
+    obfuscateAsOrigin: false,
+  }
+
+  const mocked = {
+    qty: 0,
+    increment: function () {
+      this.qty++;
+      return "anId@google.com"
+    },
+  }
+  const event = {
+    getId: mocked.increment.bind(mocked),
+    start: "start",
+    end: "end",
+    description: "the description",
+    location: "a location",
+    summary: "the summary",
+    transparency: "semi-transparent-i-guess",
+    attendees: "over 9000 people",
+  }
+
+  const result = objectUnderTest.ParseEvent(calObject, event)
+
+  const isSummaryPassed = result.summary === event.summary
+  const isDescPassed = result.description === event.description
+  const isLocPassed = result.location === event.location
+  const getIdCalled = mocked.qty === 1
+
+  return  isSummaryPassed && isDescPassed && isLocPassed && getIdCalled
+})
+
+it('parseEvent should respect obfuscateAsOrigin', () => {
+  const calObject = {
+    address: 'calendar-id1@company.com',
+    provider: 'google',
+    obfuscateAsDestination: false,
+    obfuscateAsOrigin: true,
+  }
+
+  const event = {
+    getId: () => "anId",
+    start: "start",
+    end: "end",
+    description: "the description",
+    location: "a location",
+    summary: "the summary",
+    transparency: "semi-transparent-i-guess",
+    attendees: "over 9000 people",
+  }
+
+  const result = objectUnderTest.ParseEvent(calObject, event)
+
+  const isSummaryObfuscated = result.summary === objectUnderTest.SUMMARY_NOT_COPIED_MSG
+  const isDescObfuscated = result.description === objectUnderTest.DESC_NOT_COPIED_MSG
+  const isLocObfuscated = result.location === objectUnderTest.LOC_NOT_COPIED_MSG
+
+  return  isSummaryObfuscated && isDescObfuscated && isLocObfuscated
+})
+
+it('parseEvent should respect IsOnObfuscateList', () => {
+  const calObject = {
+    address: 'calendar-id1@company.com',
+    provider: 'google',
+    obfuscateAsDestination: false,
+    obfuscateAsOrigin: false,
+  }
+  const obfuscatePattern = '(S|s)ensitive'
+  objectUnderTest.OBFUSCATE_LIST_REGEXES.push(obfuscatePattern)
+  mockConsole()
+  const event = {
+    getId: () => "anId",
+    start: "start",
+    end: "end",
+    description: "the description",
+    location: "a location",
+    summary: 'Blah Sensitive foo bar',
+    transparency: "semi-transparent-i-guess",
+    attendees: "over 9000 people",
+  }
+
+  const result = objectUnderTest.ParseEvent(calObject, event)
+  const loggedOnce = console.calls.log.length === 1
+  // Cleanup
+  unMockConsole()
+  objectUnderTest.OBFUSCATE_LIST_REGEXES.pop()
+
+  const isSummaryObfuscated = result.summary === objectUnderTest.SUMMARY_NOT_COPIED_MSG
+  const isDescObfuscated = result.description === objectUnderTest.DESC_NOT_COPIED_MSG
+  const isLocObfuscated = result.location === objectUnderTest.LOC_NOT_COPIED_MSG
+
+  return  isSummaryObfuscated && isDescObfuscated && isLocObfuscated && loggedOnce
+})
+
+it('GenerateCreatePayload should pass data through by default', () => {
+  const calObject = {
+    address: 'calendar-id1@company.com',
+    provider: 'google',
+    obfuscateAsDestination: false,
+    obfuscateAsOrigin: false,
+  }
+
+  const event = {
+    id: "anId",
+    start: "start",
+    end: "end",
+    description: "the description",
+    location: "a location",
+    summary: "the summary",
+    transparency: "semi-transparent-i-guess",
+    attendees: ["over 9000 people"],
+  }
+  const expectedSummary = `${objectUnderTest.MERGE_PREFIX}the summary`
+
+  const result = objectUnderTest.GenerateCreatePayload(calObject, event)
+
+  const isSummaryPassed = result.summary === expectedSummary
+  const isDescPassed = result.description === event.description
+  const isLocPassed = result.location === event.location
+
+  return  isSummaryPassed && isDescPassed && isLocPassed
+})
+
+it('GenerateCreatePayload should respect obfuscateAsOrigin', () => {
+  const calObject = {
+    address: 'calendar-id1@company.com',
+    provider: 'google',
+    obfuscateAsDestination: true,
+    obfuscateAsOrigin: false,
+  }
+
+  const event = {
+    getId: () => "anId",
+    start: "start",
+    end: "end",
+    description: "the description",
+    location: "a location",
+    summary: "the summary",
+    transparency: "semi-transparent-i-guess",
+    attendees: ["over 9000 people"],
+  }
+  const expectedSummary = `${objectUnderTest.MERGE_PREFIX}${objectUnderTest.SUMMARY_NOT_COPIED_MSG}`
+
+  const result = objectUnderTest.GenerateCreatePayload(calObject, event)
+
+  const isSummaryObfuscated = result.summary === expectedSummary
+  const isDescObfuscated = result.description === objectUnderTest.DESC_NOT_COPIED_MSG
+  const isLocObfuscated = result.location === objectUnderTest.LOC_NOT_COPIED_MSG
+
+  return  isSummaryObfuscated && isDescObfuscated && isLocObfuscated
 })
 
 function it(msg, fn) {
