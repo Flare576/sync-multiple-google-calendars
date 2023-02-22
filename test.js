@@ -235,14 +235,14 @@ it('should obfuscate the summary, description, and location of a matched event',
     location: 'secret lair',
   }
   mockConsole()
-  const calendar = objectUnderTest.SortEvents(1, [primaryEvent])
+  const calendar = objectUnderTest.SortEvents([primaryEvent])
   const loggedOnce = console.calls.log.length === 1
+  // Clean up
+  unMockConsole()
   const primaryDateTime = calendar.primary[new Date(3333).toUTCString()]
   const isSummaryObfuscated = primaryDateTime[0].summary === objectUnderTest.SUMMARY_NOT_COPIED_MSG
   const isDescObfuscated = primaryDateTime[0].description === objectUnderTest.DESC_NOT_COPIED_MSG
   const isLocObfuscated = primaryDateTime[0].location === objectUnderTest.LOC_NOT_COPIED_MSG
-  // Clean up
-  unMockConsole()
   objectUnderTest.OBFUSCATE_LIST_REGEXES.pop()
 
   return primaryDateTime.length === 1 && isSummaryObfuscated && isDescObfuscated && isLocObfuscated && loggedOnce
@@ -435,7 +435,6 @@ it('parseEvent should respect IsOnObfuscateList', () => {
   }
   const obfuscatePattern = '(S|s)ensitive'
   objectUnderTest.OBFUSCATE_LIST_REGEXES.push(obfuscatePattern)
-  mockConsole()
   const event = {
     getId: () => "anId",
     start: "start",
@@ -447,6 +446,7 @@ it('parseEvent should respect IsOnObfuscateList', () => {
     attendees: "over 9000 people",
   }
 
+  mockConsole()
   const result = objectUnderTest.ParseEvent(calObject, event)
   const loggedOnce = console.calls.log.length === 1
   // Cleanup
@@ -521,12 +521,15 @@ it('GenerateCreatePayload should respect obfuscateAsOrigin', () => {
 function it(msg, fn) {
   try {
     if (fn()) {
-      console.info(`PASS: ${msg}`)
+      real_console.info(`PASS: ${msg}`)
       return
     }
-    console.warn(`FAIL(assertion): ${msg}`)
+    real_console.warn(`FAIL(assertion): ${msg}`)
   } catch (err) {
-    console.error(`FAIL(error): ${msg}; error=${err.toString()}`)
+    real_console.error(`FAIL(error): ${msg}; error=${err.toString()}`)
+  } finally {
+    // Just in case a test mocks, then throws an error
+    unMockConsole()
   }
   process.exitCode = 1
 }
