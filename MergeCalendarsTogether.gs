@@ -66,11 +66,11 @@ const USER_COPY_SELF_ATTENDANCE_STATUS = false;
 // DO NOT TOUCH FROM HERE ON
 // ----------------------------------------------------------------------------
 
-const VERSION = '0.2.0';
+const VERSION = '0.2.1';
 const ENDPOINT_BASE = 'https://www.googleapis.com/calendar/v3/calendars';
 const MERGE_PREFIX = '🔄 ';
 const DESC_NOT_COPIED_MSG = '(description not copied)'
-const SUMMARY_NOT_COPIED_MSG = '(summary not copied)'
+const SUMMARY_NOT_COPIED_MSG = 'Busy'
 const LOC_NOT_COPIED_MSG = '(location not copied)'
 
 const log = createLogger();
@@ -91,7 +91,7 @@ function DeleteAllMerged () {
 
   // Easiest way to clear out all merged events is to ensure there's no matching Primary events
   calendars.forEach(calendar => {
-    calendar.primary = [];
+    calendar.events.primary = [];
   });
   MergeCalendars(calendars);
 }
@@ -320,13 +320,14 @@ function RetrieveCalendars(startTime, endTime) {
 function ParseEvent (calendarObj, event) {
     const id = event.getId().replace('@google.com', '');
     const shouldObfuscate = calendarObj.obfuscateAsOrigin || IsOnObfuscateList(event);
+    const obfuscatedSummary = (IsMergeSummary(event) ? MERGE_PREFIX : '') + SUMMARY_NOT_COPIED_MSG
     return {
       id,
       start: event.start,
       end: event.end,
       description: shouldObfuscate || !INCLUDE_DESC() ? DESC_NOT_COPIED_MSG : event.description,
       location: shouldObfuscate ? LOC_NOT_COPIED_MSG : event.location,
-      summary: shouldObfuscate ? SUMMARY_NOT_COPIED_MSG : event.summary,
+      summary: shouldObfuscate ? obfuscatedSummary : event.summary,
       transparency: event.transparency,
       attendees: event.attendees,
     };

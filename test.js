@@ -460,6 +460,33 @@ it('parseEvent should respect IsOnObfuscateList', () => {
   return  isSummaryObfuscated && isDescObfuscated && isLocObfuscated && loggedOnce
 })
 
+it('parseEvent should maintain Merge Prefix', () => {
+  const calObject = {
+    address: 'calendar-id1@company.com',
+    provider: 'google',
+    obfuscateAsDestination: false,
+    obfuscateAsOrigin: true,
+  }
+
+  const event = {
+    getId: () => "anId",
+    start: "start",
+    end: "end",
+    description: "the description",
+    location: "a location",
+    summary: `${objectUnderTest.MERGE_PREFIX}the summary`,
+    transparency: "semi-transparent-i-guess",
+    attendees: "over 9000 people",
+  }
+
+  const result = objectUnderTest.ParseEvent(calObject, event)
+  const expectedSummary = `${objectUnderTest.MERGE_PREFIX}${objectUnderTest.SUMMARY_NOT_COPIED_MSG}`
+
+  const summaryHasPrefix = result.summary === expectedSummary
+
+  return summaryHasPrefix
+})
+
 it('GenerateCreatePayload should pass data through by default', () => {
   const calObject = {
     address: 'calendar-id1@company.com',
