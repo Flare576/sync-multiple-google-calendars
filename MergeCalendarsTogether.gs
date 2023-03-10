@@ -66,7 +66,7 @@ const USER_COPY_SELF_ATTENDANCE_STATUS = false;
 // DO NOT TOUCH FROM HERE ON
 // ----------------------------------------------------------------------------
 
-const VERSION = '0.2.1';
+const VERSION = '0.2.2';
 const ENDPOINT_BASE = 'https://www.googleapis.com/calendar/v3/calendars';
 const MERGE_PREFIX = '🔄 ';
 const DESC_NOT_COPIED_MSG = '(description not copied)'
@@ -183,8 +183,13 @@ function ExistsInOrigin(origin, mergedEvent) {
   const realStart = GetRealStart(mergedEvent);
   return !!origin.events.primary[realStart]
     ?.some(originEvent => {
-      return mergedEvent.summary === GetMergeSummary(originEvent.summary) &&
-        mergedEvent.location === originEvent.location &&
+      const summaryToCheck = originEvent.shouldObfuscate ? SUMMARY_NOT_COPIED_MSG : originEvent.summary;
+      const locationToCheck = originEvent.shouldObfuscate ? LOC_NOT_COPIED_MSG : originEvent.location;
+      const descriptionToCheck = originEvent.shouldObfuscate ? DESC_NOT_COPIED_MSG : originEvent.description;
+
+      return mergedEvent.summary === GetMergeSummary(summaryToCheck) &&
+        mergedEvent.location === locationToCheck &&
+        mergedEvent.description === descriptionToCheck &&
         AttendeeSelfStatusMatches(originEvent, mergedEvent)
     })
 }
@@ -193,9 +198,14 @@ function ExistsInDestination(destination, originEvent) {
   const realStart = GetRealStart(originEvent);
   return !!destination.events.merged[realStart]
     ?.some(mergedEvent => {
-      return mergedEvent.summary === GetMergeSummary(originEvent.summary) &&
-        mergedEvent.description === originEvent.description &&
-        mergedEvent.location === originEvent.location &&
+      const lookForObfuscated = destination.obfuscateAsDestination || originEvent.shouldObfuscate;
+      const summaryToCheck = lookForObfuscated ? SUMMARY_NOT_COPIED_MSG : originEvent.summary;
+      const locationToCheck = lookForObfuscated ? LOC_NOT_COPIED_MSG : originEvent.location;
+      const descriptionToCheck = lookForObfuscated ? DESC_NOT_COPIED_MSG : originEvent.description;
+
+      return mergedEvent.summary === GetMergeSummary(summaryToCheck) &&
+        mergedEvent.location === locationToCheck &&
+        mergedEvent.description === descriptionToCheck &&
         AttendeeSelfStatusMatches(originEvent, mergedEvent)
     })
 }
@@ -317,31 +327,43 @@ function RetrieveCalendars(startTime, endTime) {
   return calendars;
 }
 
+/*
+ * Ended up needing to be slightly smarter than I would like - has 3 responsibilities:
+ * - id should be a string, not a function
+ * - If obfuscateAsOrigin is set, or if IsOnObfuscateList, mark event "shouldObfuscate" UNLESS
+ *   - Event is Merged Event that was NOT obfuscated
+ * - description should respect INCLUDE_DESC setting so rest of code doesn't need to care
+ */
 function ParseEvent (calendarObj, event) {
     const id = event.getId().replace('@google.com', '');
-    const shouldObfuscate = calendarObj.obfuscateAsOrigin || IsOnObfuscateList(event);
-    const obfuscatedSummary = (IsMergeSummary(event) ? MERGE_PREFIX : '') + SUMMARY_NOT_COPIED_MSG
+    let shouldObfuscate = calendarObj.obfuscateAsOrigin || IsOnObfuscateList(event);
+    // Merged events should only be marked as "ShouldObfuscate" if they already are
+    if (IsMergeSummary(event)) {
+      shouldObfuscate = event.summary === GetMergeSummary(SUMMARY_NOT_COPIED_MSG)
+    }
     return {
       id,
+      shouldObfuscate,
       start: event.start,
       end: event.end,
-      description: shouldObfuscate || !INCLUDE_DESC() ? DESC_NOT_COPIED_MSG : event.description,
-      location: shouldObfuscate ? LOC_NOT_COPIED_MSG : event.location,
-      summary: shouldObfuscate ? obfuscatedSummary : event.summary,
+      description: INCLUDE_DESC() ? event.description : DESC_NOT_COPIED_MSG,
+      location: event.location,
+      summary: event.summary,
       transparency: event.transparency,
       attendees: event.attendees,
     };
 }
 
 function GenerateCreatePayload (destination, event) {
+    const shouldObfuscate = event.shouldObfuscate || destination.obfuscateAsDestination;
     const requestBody = {
-      summary: GetMergeSummary(destination.obfuscateAsDestination ? SUMMARY_NOT_COPIED_MSG : event.summary),
-      location:destination.obfuscateAsDestination ? LOC_NOT_COPIED_MSG : event.location,
+      summary: GetMergeSummary(shouldObfuscate ? SUMMARY_NOT_COPIED_MSG : event.summary),
+      location: shouldObfuscate ? LOC_NOT_COPIED_MSG : event.location,
       reminders: {
         useDefault: false,
         overrides: [], // No reminders
       },
-      description: destination.obfuscateAsDestination || !INCLUDE_DESC() ? DESC_NOT_COPIED_MSG : event.description,
+      description: shouldObfuscate ? DESC_NOT_COPIED_MSG : event.description,
       start: event.start,
       end: event.end,
       attendees: GetAttendeeSelf(event, destination.address),
@@ -354,7 +376,6 @@ function MergeCalendars (calendars) {
   // One Calender per batch...
   const payloadSets = {};
 
-  // calendars.forEach(({calendarId, primary, merged}) => {
   calendars.forEach(cal => {
     // Now that we have all events for all calendars, ensure each calendar's
     // primary events are merged to others
