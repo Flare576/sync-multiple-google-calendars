@@ -185,7 +185,7 @@ function ExistsInOrigin(origin, mergedEvent) {
     ?.some(originEvent => {
       const summaryToCheck = originEvent.shouldObfuscate ? SUMMARY_NOT_COPIED_MSG : originEvent.summary;
       const locationToCheck = originEvent.shouldObfuscate ? LOC_NOT_COPIED_MSG : originEvent.location;
-      const descriptionToCheck = originEvent.shouldObfuscate ? DESC_NOT_COPIED_MSG : originEvent.description;
+      const descriptionToCheck = originEvent.shouldObfuscate || !INCLUDE_DESC() ? DESC_NOT_COPIED_MSG : originEvent.description;
 
       return mergedEvent.summary === GetMergeSummary(summaryToCheck) &&
         mergedEvent.location === locationToCheck &&
@@ -201,23 +201,13 @@ function ExistsInDestination(destination, originEvent) {
       const lookForObfuscated = destination.obfuscateAsDestination || originEvent.shouldObfuscate;
       const summaryToCheck = lookForObfuscated ? SUMMARY_NOT_COPIED_MSG : originEvent.summary;
       const locationToCheck = lookForObfuscated ? LOC_NOT_COPIED_MSG : originEvent.location;
-      const descriptionToCheck = lookForObfuscated ? DESC_NOT_COPIED_MSG : originEvent.description;
+      const descriptionToCheck = lookForObfuscated || !INCLUDE_DESC()  ? DESC_NOT_COPIED_MSG : originEvent.description;
 
       return mergedEvent.summary === GetMergeSummary(summaryToCheck) &&
         mergedEvent.location === locationToCheck &&
         mergedEvent.description === descriptionToCheck &&
         AttendeeSelfStatusMatches(originEvent, mergedEvent)
     })
-}
-
-function NeedsObfuscation (destination, event) {
-  const shouldObfuscate = destination.obfuscateAsDestination || IsOnObfuscateList(event.summary);
-  // If the event should be obfuscated, but isn't...
-  return shouldObfuscate && (
-    event.location !== LOC_NOT_COPIED_MSG ||
-    event.description !== DESC_NOT_COPIED_MSG ||
-    event.summary !== GetMergeSummary(SUMMARY_NOT_COPIED_MSG)
-  );
 }
 
 function AttendeeSelfStatusMatches(originEvent, mergedEvent) {
@@ -328,11 +318,10 @@ function RetrieveCalendars(startTime, endTime) {
 }
 
 /*
- * Ended up needing to be slightly smarter than I would like - has 3 responsibilities:
+ * Ended up needing to be slightly smarter than I would like - has 2 responsibilities:
  * - id should be a string, not a function
  * - If obfuscateAsOrigin is set, or if IsOnObfuscateList, mark event "shouldObfuscate" UNLESS
  *   - Event is Merged Event that was NOT obfuscated
- * - description should respect INCLUDE_DESC setting so rest of code doesn't need to care
  */
 function ParseEvent (calendarObj, event) {
     const id = event.getId().replace('@google.com', '');
@@ -346,7 +335,7 @@ function ParseEvent (calendarObj, event) {
       shouldObfuscate,
       start: event.start,
       end: event.end,
-      description: INCLUDE_DESC() ? event.description : DESC_NOT_COPIED_MSG,
+      description: event.description,
       location: event.location,
       summary: event.summary,
       transparency: event.transparency,
@@ -363,7 +352,7 @@ function GenerateCreatePayload (destination, event) {
         useDefault: false,
         overrides: [], // No reminders
       },
-      description: shouldObfuscate ? DESC_NOT_COPIED_MSG : event.description,
+      description: shouldObfuscate || !INCLUDE_DESC() ? DESC_NOT_COPIED_MSG : event.description,
       start: event.start,
       end: event.end,
       attendees: GetAttendeeSelf(event, destination.address),
@@ -402,7 +391,7 @@ function MergeCalendars (calendars) {
     DateObjectToItems(cal.events.merged).forEach(mergedEvent => {
       const primaryFound = calendars
         .some(origin => origin.address !== cal.address && ExistsInOrigin(origin, mergedEvent));
-      if (!primaryFound || mergedEvent.isDuplicate || NeedsObfuscation(cal, mergedEvent)) {
+      if (!primaryFound || mergedEvent.isDuplicate) {
         let calendarRequests = payloadSets[cal.address] || [];
         calendarRequests.push({
           method: 'DELETE',
@@ -447,7 +436,6 @@ if (typeof module !== 'undefined') {
     ExistsInDestination,
     MERGE_PREFIX,
     DESC_NOT_COPIED_MSG,
-    NeedsObfuscation,
     SortEvents,
     IGNORE_LIST_REGEXES,
     IsOnIgnoreList,
