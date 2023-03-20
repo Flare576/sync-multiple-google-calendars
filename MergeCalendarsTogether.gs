@@ -66,7 +66,7 @@ const USER_COPY_SELF_ATTENDANCE_STATUS = false;
 // DO NOT TOUCH FROM HERE ON
 // ----------------------------------------------------------------------------
 
-const VERSION = '0.2.2';
+const VERSION = '0.2.3';
 const ENDPOINT_BASE = 'https://www.googleapis.com/calendar/v3/calendars';
 const MERGE_PREFIX = '🔄 ';
 const DESC_NOT_COPIED_MSG = '(description not copied)'
@@ -120,6 +120,12 @@ function createLogger (){
     info: (...msg)=> { console.log('INFO: ', ...msg) },
     debug: (...msg)=> { if (VERBOSE_LOGGING) console.log('DEBUG:', ...msg)}
   }
+}
+
+function ShouldObfuscate(sourceCal, destinationCal, event) {
+  return sourceCal.obfuscateAsOrigin
+    || destinationCal.obfuscateAsDestination
+    || IsOnObfuscateList(event);
 }
 
 function INCLUDE_DESC() {
@@ -179,34 +185,26 @@ function DateObjectToItems(dateObject) {
   return Object.keys(dateObject).reduce((items, day) => items.concat(dateObject[day]), [])
 }
 
-function ExistsInOrigin(origin, mergedEvent) {
-  const realStart = GetRealStart(mergedEvent);
-  return !!origin.events.primary[realStart]
-    ?.some(originEvent => {
-      const summaryToCheck = originEvent.shouldObfuscate ? SUMMARY_NOT_COPIED_MSG : originEvent.summary;
-      const locationToCheck = originEvent.shouldObfuscate ? LOC_NOT_COPIED_MSG : originEvent.location;
-      const descriptionToCheck = originEvent.shouldObfuscate || !INCLUDE_DESC() ? DESC_NOT_COPIED_MSG : originEvent.description;
-
-      return mergedEvent.summary === GetMergeSummary(summaryToCheck) &&
-        mergedEvent.location === locationToCheck &&
-        mergedEvent.description === descriptionToCheck &&
-        AttendeeSelfStatusMatches(originEvent, mergedEvent)
+function ExistsInDestination(destination, searchEvent) {
+  const realStart = GetRealStart(searchEvent);
+  return !!destination.events.merged[realStart]
+    ?.some(mergedEvent => {
+      return mergedEvent.summary === searchEvent.summary &&
+        mergedEvent.location === searchEvent.location &&
+        mergedEvent.description === searchEvent.description &&
+        AttendeeSelfStatusMatches(searchEvent, mergedEvent)
     })
 }
 
-function ExistsInDestination(destination, originEvent) {
-  const realStart = GetRealStart(originEvent);
-  return !!destination.events.merged[realStart]
-    ?.some(mergedEvent => {
-      const lookForObfuscated = destination.obfuscateAsDestination || originEvent.shouldObfuscate;
-      const summaryToCheck = lookForObfuscated ? SUMMARY_NOT_COPIED_MSG : originEvent.summary;
-      const locationToCheck = lookForObfuscated ? LOC_NOT_COPIED_MSG : originEvent.location;
-      const descriptionToCheck = lookForObfuscated || !INCLUDE_DESC()  ? DESC_NOT_COPIED_MSG : originEvent.description;
-
-      return mergedEvent.summary === GetMergeSummary(summaryToCheck) &&
-        mergedEvent.location === locationToCheck &&
-        mergedEvent.description === descriptionToCheck &&
-        AttendeeSelfStatusMatches(originEvent, mergedEvent)
+function ExistsInOrigin(origin, destination, mergedEvent) {
+  const realStart = GetRealStart(mergedEvent);
+  return !!origin.events.primary[realStart]
+    ?.some(originEvent => {
+      const lookFor = GenerateCreatePayload(origin, destination, originEvent)
+      return mergedEvent.summary === lookFor.summary &&
+        mergedEvent.location === lookFor.location &&
+        mergedEvent.description === lookFor.description &&
+        AttendeeSelfStatusMatches(lookFor, mergedEvent)
     })
 }
 
@@ -283,7 +281,7 @@ function RetrieveCalendars(startTime, endTime) {
     const calendarCheck = CalendarApp.getCalendarById(address);
     if (!calendarCheck) {
       const msg = `Calendar not found: ${address}. Be sure you've shared the`
-        + `calendar to this account AND accepted the share!`
+        + ` calendar to this account AND accepted the share!`
       log.info(msg)
       return;
     }
@@ -317,22 +315,10 @@ function RetrieveCalendars(startTime, endTime) {
   return calendars;
 }
 
-/*
- * Ended up needing to be slightly smarter than I would like - has 2 responsibilities:
- * - id should be a string, not a function
- * - If obfuscateAsOrigin is set, or if IsOnObfuscateList, mark event "shouldObfuscate" UNLESS
- *   - Event is Merged Event that was NOT obfuscated
- */
 function ParseEvent (calendarObj, event) {
     const id = event.getId().replace('@google.com', '');
-    let shouldObfuscate = calendarObj.obfuscateAsOrigin || IsOnObfuscateList(event);
-    // Merged events should only be marked as "ShouldObfuscate" if they already are
-    if (IsMergeSummary(event)) {
-      shouldObfuscate = event.summary === GetMergeSummary(SUMMARY_NOT_COPIED_MSG)
-    }
     return {
       id,
-      shouldObfuscate,
       start: event.start,
       end: event.end,
       description: event.description,
@@ -343,8 +329,11 @@ function ParseEvent (calendarObj, event) {
     };
 }
 
-function GenerateCreatePayload (destination, event) {
-    const shouldObfuscate = event.shouldObfuscate || destination.obfuscateAsDestination;
+/*
+ * This is the only function that should care about obfuscation
+ */
+function GenerateCreatePayload (source, destination, event) {
+    const shouldObfuscate = ShouldObfuscate(source, destination, event)
     const requestBody = {
       summary: GetMergeSummary(shouldObfuscate ? SUMMARY_NOT_COPIED_MSG : event.summary),
       location: shouldObfuscate ? LOC_NOT_COPIED_MSG : event.location,
@@ -365,22 +354,22 @@ function MergeCalendars (calendars) {
   // One Calender per batch...
   const payloadSets = {};
 
-  calendars.forEach(cal => {
+  calendars.forEach(calendar => {
     // Now that we have all events for all calendars, ensure each calendar's
     // primary events are merged to others
-    DateObjectToItems(cal.events.primary).forEach(originEvent => {
+    DateObjectToItems(calendar.events.primary).forEach(originEvent => {
       calendars
-        .filter(destination => destination.address !== cal.address) // Don't send to the current calendar
+        .filter(destination => destination.address !== calendar.address) // Don't send to the current calendar
         .forEach(destination => {
           const calendarRequests = payloadSets[destination.address] || [];
-          if (!ExistsInDestination(destination, originEvent)) {
-            const body = GenerateCreatePayload(destination, originEvent)
-            log.debug(`Pre-event update body for destination:  ${destination.address} :: ${JSON.stringify(body, null, 2)}`)
+          const destinationEvent = GenerateCreatePayload(calendar, destination, originEvent);
+          if (!ExistsInDestination(destination, destinationEvent)) {
+            log.debug(`Pre-event update body for destination:  ${destination.address} :: ${JSON.stringify(destinationEvent, null, 2)}`)
             calendarRequests.push(JSON.parse(JSON.stringify({
               method: 'POST',
               endpoint: `${ENDPOINT_BASE}/${destination.address}/events`,
-              summary: body.summary, // Only used in debugging statements
-              requestBody: body,
+              summary: destinationEvent.summary, // Only used in debugging statements
+              requestBody: destinationEvent,
             })));
           }
           payloadSets[destination.address] = calendarRequests;
@@ -388,17 +377,17 @@ function MergeCalendars (calendars) {
     });
     // Also make sure that all of our merged appointments still exist in some
     // other calendar's primary list
-    DateObjectToItems(cal.events.merged).forEach(mergedEvent => {
+    DateObjectToItems(calendar.events.merged).forEach(mergedEvent => {
       const primaryFound = calendars
-        .some(origin => origin.address !== cal.address && ExistsInOrigin(origin, mergedEvent));
+        .some(origin => origin.address !== calendar.address && ExistsInOrigin(origin, calendar, mergedEvent));
       if (!primaryFound || mergedEvent.isDuplicate) {
-        let calendarRequests = payloadSets[cal.address] || [];
+        let calendarRequests = payloadSets[calendar.address] || [];
         calendarRequests.push({
           method: 'DELETE',
-          endpoint: `${ENDPOINT_BASE}/${cal.address}/events/${mergedEvent.id}`,
+          endpoint: `${ENDPOINT_BASE}/${calendar.address}/events/${mergedEvent.id}`,
           summary: mergedEvent.summary, // Only used in debugging statements
         });
-        payloadSets[cal.address] = calendarRequests;
+        payloadSets[calendar.address] = calendarRequests;
       }
     });
   });
@@ -450,5 +439,6 @@ if (typeof module !== 'undefined') {
     GetAttendeeSelf,
     ParseEvent,
     GenerateCreatePayload,
+    ShouldObfuscate,
   }
 }
