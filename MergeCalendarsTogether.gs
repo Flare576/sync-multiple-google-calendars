@@ -176,9 +176,17 @@ function IsMergeSummary(event) {
   return (event.summary || '').startsWith(MERGE_PREFIX);
 }
 
-function GetRealStart(event) {
+function GetRealDate(dateTimeHolder) {
   // Convert all date-times to UTC for comparisons
-  return new Date(event.start.dateTime).toUTCString();
+  return new Date(dateTimeHolder.dateTime).toUTCString();
+}
+
+function GetRealStart(event) {
+  return GetRealDate(event.start);
+}
+
+function GetRealEnd(event) {
+  return GetRealDate(event.end);
 }
 
 function DateObjectToItems(dateObject) {
@@ -192,6 +200,7 @@ function ExistsInDestination(destination, searchEvent) {
       return mergedEvent.summary === searchEvent.summary &&
         mergedEvent.location === searchEvent.location &&
         mergedEvent.description === searchEvent.description &&
+        GetRealEnd(mergedEvent) === GetRealEnd(searchEvent) &&
         AttendeeSelfStatusMatches(searchEvent, mergedEvent)
     })
 }
@@ -204,6 +213,7 @@ function ExistsInOrigin(origin, destination, mergedEvent) {
       return mergedEvent.summary === lookFor.summary &&
         mergedEvent.location === lookFor.location &&
         mergedEvent.description === lookFor.description &&
+        GetRealEnd(mergedEvent) === GetRealEnd(lookFor) &&
         AttendeeSelfStatusMatches(lookFor, mergedEvent)
     })
 }
