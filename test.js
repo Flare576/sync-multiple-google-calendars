@@ -49,13 +49,13 @@ const baseCal = {
 it('GetStartEndDates_ should use the right date range', () => {
   const rightStart = new Date()
   const rightEnd = new Date()
-  rightStart.setHours(0, 0, 0, 0);
-  rightEnd.setHours(0, 0, 0, 0);
-  rightStart.setDate(rightStart.getDate() - objectUnderTest.SYNC_DAYS_IN_PAST);
-  rightEnd.setDate(rightEnd.getDate() + objectUnderTest.SYNC_DAYS_IN_FUTURE);
+  rightStart.setHours(0, 0, 0, 0)
+  rightEnd.setHours(0, 0, 0, 0)
+  rightStart.setDate(rightStart.getDate() - objectUnderTest.SYNC_DAYS_IN_PAST)
+  rightEnd.setDate(rightEnd.getDate() + objectUnderTest.SYNC_DAYS_IN_FUTURE)
 
-  const dates = objectUnderTest.GetStartEndDates_();
-  return dates[0].valueOf() === rightStart.valueOf() && dates[1].valueOf() === rightEnd.valueOf();
+  const dates = objectUnderTest.GetStartEndDates_()
+  return dates[0].valueOf() === rightStart.valueOf() && dates[1].valueOf() === rightEnd.valueOf()
 })
 
 it('GetStartEndDates_ should use the right date range if modified', () => {
@@ -65,13 +65,13 @@ it('GetStartEndDates_ should use the right date range if modified', () => {
   objectUnderTest.TEST_SYNC_DAYS_IN_FUTURE = newFuture
   const rightStart = new Date()
   const rightEnd = new Date()
-  rightStart.setHours(0, 0, 0, 0);
-  rightEnd.setHours(0, 0, 0, 0);
-  rightStart.setDate(rightStart.getDate() - newPast);
-  rightEnd.setDate(rightEnd.getDate() + newFuture);
+  rightStart.setHours(0, 0, 0, 0)
+  rightEnd.setHours(0, 0, 0, 0)
+  rightStart.setDate(rightStart.getDate() - newPast)
+  rightEnd.setDate(rightEnd.getDate() + newFuture)
 
-  const dates = objectUnderTest.GetStartEndDates_();
-  return dates[0].valueOf() === rightStart.valueOf() && dates[1].valueOf() === rightEnd.valueOf();
+  const dates = objectUnderTest.GetStartEndDates_()
+  return dates[0].valueOf() === rightStart.valueOf() && dates[1].valueOf() === rightEnd.valueOf()
 })
 
 it('ShouldObfuscate_ should return false if all flags are false', () => {
@@ -319,7 +319,7 @@ it('SortEvents_ should end up with events in primary', () => {
     start: {dateTime: 1111},
     summary: 'I am primary event',
   }
-  const {primary, merged} = objectUnderTest.SortEvents_([primaryEvent])
+  const {primary} = objectUnderTest.SortEvents_([primaryEvent])
   const primaryDateTime = primary[new Date(1111).toUTCString()]
   return primaryDateTime.length === 1 && primaryDateTime[0].summary === primaryEvent.summary
 })
@@ -329,7 +329,7 @@ it('SortEvents_ should end up with events in merged', () => {
     start: {dateTime: 1111},
     summary: `${objectUnderTest.MERGE_PREFIX}I am merged event`,
   }
-  const {primary, merged} = objectUnderTest.SortEvents_([mergedEvent])
+  const {merged} = objectUnderTest.SortEvents_([mergedEvent])
   const mergedDateTime = merged[new Date(1111).toUTCString()]
   return mergedDateTime.length === 1 && mergedDateTime[0].summary === mergedEvent.summary
 })
@@ -433,7 +433,7 @@ it('AttendeeSelfStatusMatches_ should return [] when COPY_SELF_ATTENDANCE_STATUS
 })
 
 it('AttendeeSelfStatusMatches_ should return false when origin and merged have mismatched Attendee status', () => {
-  objectUnderTest.TEST_COPY_SELF_ATTENDANCE_STATUS = true;
+  objectUnderTest.TEST_COPY_SELF_ATTENDANCE_STATUS = true
   const originEvent =  { attendees:
     [{
       email: 'user.email@cheeseburger.com',
@@ -453,7 +453,7 @@ it('AttendeeSelfStatusMatches_ should return false when origin and merged have m
 })
 
 it('AttendeeSelfStatusMatches_ should return self attendee with updated email', () => {
-  objectUnderTest.TEST_COPY_SELF_ATTENDANCE_STATUS = true;
+  objectUnderTest.TEST_COPY_SELF_ATTENDANCE_STATUS = true
   const originEvent = { attendees:
     [{
       email: 'user.email@cheeseburger.com',
@@ -469,7 +469,7 @@ it('AttendeeSelfStatusMatches_ should return self attendee with updated email', 
   return (Array.isArray(res) &&
     res[0].email === destination.address &&
     res[0].self === originEvent.attendees[0].self &&
-    res[0].responseStatus === originEvent.attendees[0].responseStatus);
+    res[0].responseStatus === originEvent.attendees[0].responseStatus)
 })
 
 it('ParseEvent_ should pass data through by default', () => {
@@ -480,7 +480,7 @@ it('ParseEvent_ should pass data through by default', () => {
   const mocked = {
     qty: 0,
     increment: function () {
-      this.qty++;
+      this.qty++
       return "anId@google.com"
     },
   }
