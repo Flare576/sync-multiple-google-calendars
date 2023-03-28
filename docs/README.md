@@ -17,6 +17,7 @@ you've already got events scheduled.
 Throughout this doc I use two terms a lot:
 
 **Primary Event** - A real event on a calendar
+
 **Merged Event** - A placeholder on a calendar representing a Primary Event on another calendar
 
 # Requirements
@@ -94,10 +95,10 @@ your project again. When you do this, it's best to:
 1. Make a backup of your current script by copy/pasting into a text document or other local file
 1. Replace everything in `Code.gs` with the contents of [MergeCalendarsTogether.gs].
 1. Copy your settings from your backup into the new code, particularly
-  - CALENDARS_TO_MERGE
-  - SYNC_DAYS_IN_PAST
-  - SYNC_DAYS_IN_FUTURE
-  - If you use any other features of the script (e.g., filtering/obfuscation/etc.), copy those
+    a. CALENDARS_TO_MERGE
+    a. SYNC_DAYS_IN_PAST
+    a. SYNC_DAYS_IN_FUTURE
+    a. If you use any other features of the script (e.g., filtering/obfuscation/etc.), copy those
     settings as well
 1. Double-check that "DEBUG_ONLY" is set to `true`
 1. Save
