@@ -18,7 +18,7 @@ module.exports = {
       "sourceType": "module"
   },
   "rules": {
-    // "semi": ["error", "always"],
+    "space-before-function-paren": ["error", "always"],
     "semi": ["error", "never"],
   },
 }

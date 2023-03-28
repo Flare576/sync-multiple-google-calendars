@@ -77,7 +77,7 @@ const log = createLogger_()
 
 // listed as first function so it's the default to run in the web UI
 // eslint-disable-next-line no-unused-vars
-function MergeCalendarsTogether() {
+function MergeCalendarsTogether () {
   const dates = GetStartEndDates_()
   var lock = LockService.getScriptLock()
   lock.tryLock(60000)
@@ -160,7 +160,7 @@ function IsOnIgnoreList_ (event) {
   return false
 }
 
-function IsOnObfuscateList_(event) {
+function IsOnObfuscateList_ (event) {
   for (const currRe of OBFUSCATE_LIST_REGEXES) {
     const isMatch = new RegExp(currRe).test(event.summary)
     if (isMatch) {
@@ -287,7 +287,7 @@ function SortEvents_ (items) {
   }
 }
 
-function RetrieveCalendars_(startTime, endTime) {
+function RetrieveCalendars_ (startTime, endTime) {
   const calendars = []
   CALENDARS_TO_MERGE.forEach(calendarObj => {
     const {address} = calendarObj

@@ -543,7 +543,7 @@ it('GenerateCreatePayload_ should respect obfuscation (test one kind here)', () 
   return  isSummaryObfuscated && isDescObfuscated && isLocObfuscated
 })
 
-function it(msg, fn) {
+function it (msg, fn) {
   try {
     if (fn()) {
       real_console.info(`PASS: ${msg}`)
