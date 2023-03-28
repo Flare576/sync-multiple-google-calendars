@@ -95,11 +95,10 @@ your project again. When you do this, it's best to:
 1. Make a backup of your current script by copy/pasting into a text document or other local file
 1. Replace everything in `Code.gs` with the contents of [MergeCalendarsTogether.gs].
 1. Copy your settings from your backup into the new code, particularly
-    a. CALENDARS_TO_MERGE
-    a. SYNC_DAYS_IN_PAST
-    a. SYNC_DAYS_IN_FUTURE
-    a. If you use any other features of the script (e.g., filtering/obfuscation/etc.), copy those
-    settings as well
+    - CALENDARS_TO_MERGE
+    - SYNC_DAYS_IN_PAST
+    - SYNC_DAYS_IN_FUTURE
+    - If you use any other features of the script (e.g., filtering/obfuscation/etc.), copy those settings as well
 1. Double-check that "DEBUG_ONLY" is set to `true`
 1. Save
 1. At the top of the screen, ensure "MergeCalendarsTogether" is selected, and press "Run"
