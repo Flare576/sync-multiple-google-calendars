@@ -20,5 +20,6 @@ module.exports = {
   "rules": {
     "space-before-function-paren": ["error", "always"],
     "semi": ["error", "never"],
+    "quotes": ["error", "single"],
   },
 }

@@ -15,22 +15,22 @@ function unMockConsole () {
 const baseEvent = {
   start: {dateTime: 1111},
   end: {dateTime: 2222},
-  description: "the description",
-  location: "a location",
-  summary: "the summary",
-  transparency: "semi-transparent-i-guess",
+  description: 'the description',
+  location: 'a location',
+  summary: 'the summary',
+  transparency: 'semi-transparent-i-guess',
 }
 
 const baseParseEvent = {
   ...baseEvent,
-  getId: () => "anId",
-  attendees: "over 9000 people",
+  getId: () => 'anId',
+  attendees: 'over 9000 people',
 }
 
 const baseGenericEvent = {
   ...baseEvent,
   id: 'anId',
-  attendees: ["over 9000 people"],
+  attendees: ['over 9000 people'],
 }
 
 const baseMergedEvent = {
@@ -481,7 +481,7 @@ it('ParseEvent_ should pass data through by default', () => {
     qty: 0,
     increment: function () {
       this.qty++
-      return "anId@google.com"
+      return 'anId@google.com'
     },
   }
 

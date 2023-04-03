@@ -294,7 +294,7 @@ function RetrieveCalendars_ (startTime, endTime) {
     const calendarCheck = CalendarApp.getCalendarById(address)
     if (!calendarCheck) {
       const msg = `Calendar not found: ${address}. Be sure you've shared the`
-        + ` calendar to this account AND accepted the share!`
+        + ' calendar to this account AND accepted the share!'
       log.info(msg)
       return
     }
