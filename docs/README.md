@@ -167,11 +167,17 @@ setting up the triggers again (Step #10)
 
 ## License
 
-- Original: MIT © Flare576
-- Original: MIT © [Ali Karbassi]
+- MIT © Flare576
+
+### Historical
+
+This project was originally inspired by [Sync Multiple Google Calendars] by [Ali Karbassi]. If
+you're interested in a process that writes events from multiple calendars to a single destination
+calendar, it's something you should check out!
 
 [video guide here]: https://youtu.be/qH2W_lex3NU
 [ali karbassi]: http://karbassi.com
+[Sync Multiple Google Calendars]: https://github.com/karbassi/sync-multiple-google-calendars
 [google apps scripts]: https://script.google.com/intro
 [mergecalendarstogether.gs]: ../MergeCalendarsTogether.gs
 [batchrequests.gs]: ../BatchRequests.gs
